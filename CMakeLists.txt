@@ -4,7 +4,7 @@ project(YourProjectName)
 
 # Add your source files here
 set(SOURCE_FILES 
-    src/main.cpp
+    main.cpp
     src/polygon_utils.cpp
     src/solver.cpp
     src/mesh.cpp
