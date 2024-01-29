@@ -191,6 +191,28 @@ double calculate_polygon_area(const poly_t *polygon) {
     return area;
 }
 
+double calculate_polygon_area(const std::vector<std::vector<double>> input_polygon) {
+    if (input_polygon.size() < 3) {
+        return 0.0;
+    }
+
+	int n = input_polygon.size();
+    double area = 0.0;
+
+    for (int i = 0; i < n; i++) {
+		double x1 = input_polygon[i][0];
+		double y1 = input_polygon[i][1];
+		double x2 = input_polygon[(i + 1) % n][0];
+		double y2 = input_polygon[(i + 1) % n][1];
+        area += (x1 * y2) - (x2 * y1);
+    }
+
+    // Take the absolute value and divide by 2
+    area = 0.5 * (area);
+
+    return area;
+}
+
 double integrate_intensity(poly_t **polygons, double *intensities, int num_polygons) {
     double intensity = 0.0;
 
@@ -237,32 +259,16 @@ void calculate_bounding_box(poly_t *polygon, double *min_x, double *min_y, doubl
     free(y_coords);
 }
 
-void reverseVertices(poly_t *polygon) {
-    if (polygon->len <= 1) {
-        // Nothing to reverse for polygons with 0 or 1 vertices
-        return;
-    }
+double integrate_cell_intensities(std::vector<std::vector<double>> &image, std::vector<std::vector<double>> &input_polygon, int image_w, int image_h, double width) {
 
-    // Allocate temporary memory to store reversed vertices
-    vec_t *reversed = (vec_t *)malloc(polygon->len * sizeof(vec_t));
-
-    if (reversed == NULL) {
-        // Handle memory allocation failure
-        // (You might want to add error handling based on your specific requirements)
-        return;
-    }
-
-    // Copy vertices in reverse order
-    for (int i = 0; i < polygon->len; i++) {
-        reversed[i] = polygon->v[polygon->len - 1 - i];
-    }
-
-    // Replace the original vertices with the reversed ones
-    free(polygon->v); // Free the original memory
-    polygon->v = reversed;
-}
-
-double integrate_cell_intensities(double *image, poly_t *polygon, int image_w, int image_h, double width) {
+	poly_t *polygon = poly_new();
+	for (int i=0; i<input_polygon.size(); i++) {
+		vec_t point;
+		point.x = input_polygon[i][0];
+		point.y = input_polygon[i][1];
+		poly_append(polygon, &point);
+	}
+	
 	bbox_t bbox = calculateBoundingBox(polygon);
 
 	vec_t square_vertices[4];
@@ -298,7 +304,7 @@ double integrate_cell_intensities(double *image, poly_t *polygon, int image_w, i
 
 			poly_t *result = poly_clip(polygon, pixel_poly);
 
-			intensity += calculate_polygon_area(result) * image[(image_h - y - 1) * image_w + x];
+			intensity += calculate_polygon_area(result) * image[(image_h - y - 1)][x];
 
 			poly_free(pixel_poly);
 			poly_free(result);
@@ -308,19 +314,40 @@ double integrate_cell_intensities(double *image, poly_t *polygon, int image_w, i
     return intensity;
 }
 
-void get_target_areas(double *image, poly_t **polygons, int num_polygons, int image_w, int image_h, double width, double height, double *target_areas) {
+std::vector<double> get_target_areas(std::vector<std::vector<double>> &image, std::vector<std::vector<std::vector<double>>> &input_polygons, int image_w, int image_h, double width, double height) {
+	std::vector<double> target_areas;
 	double sum_target_area = 0.0f;
 
-	for (int i=0; i<num_polygons; i++) {
-		target_areas[i] = integrate_cell_intensities(image, polygons[i], image_w, image_h, width);
+	for (int i=0; i<input_polygons.size(); i++) {
+		target_areas.push_back(integrate_cell_intensities(image, input_polygons[i], image_w, image_h, width));
 		sum_target_area += target_areas[i];
 	}
 
 	double scaling_factor = (width * height) / sum_target_area;
 
-	for (int i=0; i<num_polygons; i++) {
+	for (int i=0; i<input_polygons.size(); i++) {
 		target_areas[i] *= scaling_factor;
 	}
+
+	return target_areas;
+}
+
+std::vector<double> get_source_areas(std::vector<std::vector<std::vector<double>>> &input_polygons, double width, double height) {
+	std::vector<double> source_areas;
+	double sum_target_area = 0.0f;
+
+	for (int i=0; i<input_polygons.size(); i++) {
+		source_areas.push_back(calculate_polygon_area(input_polygons[i]));
+		sum_target_area += source_areas[i];
+	}
+
+	double scaling_factor = (width * height) / sum_target_area;
+
+	for (int i=0; i<input_polygons.size(); i++) {
+		source_areas[i] *= scaling_factor;
+	}
+
+	return source_areas;
 }
 
 void integrate_cell_gradient(double *grad_x, double *grad_y, poly_t *polygon, int grad_w, int grad_h, double width, double *interp_x, double *interp_y) {

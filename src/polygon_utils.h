@@ -2,6 +2,7 @@
 #define POLYGON_UTILS_H
 
 #include <math.h>
+#include <vector>
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,10 +32,11 @@ poly_t *poly_new();
 void poly_free(poly_t *p);
 void poly_append(poly_t *p, vec_t *v);
 
-double integrate_cell_intensities(double *image, poly_t *polygon, int image_w, int image_h, double width);
+double integrate_cell_intensities(std::vector<std::vector<double>> &image, poly_t *polygon, int image_w, int image_h, double width);
 void integrate_cell_gradient(double *grad_x, double *grad_y, poly_t *polygon, int grad_w, int grad_h, double width, double *interp_x, double *interp_y);
 
-void get_target_areas(double *image, poly_t **polygons, int num_polygons, int image_w, int image_h, double width, double height, double *target_areas);
+std::vector<double> get_target_areas(std::vector<std::vector<double>> &image, std::vector<std::vector<std::vector<double>>> &input_polygons, int image_w, int image_h, double width, double height);
+std::vector<double> get_source_areas(std::vector<std::vector<std::vector<double>>> &input_polygons, double width, double height);
 
 #ifdef __cplusplus
 }

@@ -1,3 +1,6 @@
+#ifndef MESH_H
+#define MESH_H
+
 #include <cmath>
 #include <vector>
 #include <string>
@@ -46,3 +49,5 @@ class Mesh {
         polygon_t get_barycentric_dual_cell(int point);
         std::vector<polygon_t> build_dual_cells();
 };
+
+#endif
