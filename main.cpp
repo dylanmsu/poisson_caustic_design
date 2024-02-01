@@ -42,10 +42,10 @@ void show_grid(std::vector<std::vector<double>> image_grid, int width, int heigh
     int k = cv::waitKey(0);
 }
 
-void export_cells_as_svg(std::vector<polygon_t> cells, std::vector<double> intensities) {
-    std::ofstream svg_file("../cell.svg", std::ios::out);
+void export_cells_as_svg(std::vector<polygon_t> cells, std::vector<double> intensities, std::string filename) {
+    std::ofstream svg_file(filename, std::ios::out);
     if (!svg_file.is_open()) {
-        std::cerr << "Error: Unable to open file " << "../cell.svg" << std::endl;
+        std::cerr << "Error: Unable to open file " << filename << std::endl;
     }
 
     // Write SVG header
@@ -58,13 +58,13 @@ void export_cells_as_svg(std::vector<polygon_t> cells, std::vector<double> inten
         for (std::size_t j = 0; j < cell.size(); ++j) {
             const auto& point = cell[j];
             path_str += std::to_string((point[0] / (double)1) * 1000.0f) + "," +
-                        std::to_string((1 - point[1] / (double)1) * 1000.0f * ((double)1 / (double)1));
+                        std::to_string((point[1] / (double)1) * 1000.0f * ((double)1 / (double)1));
 
             if (j < cell.size() - 1)
                 path_str += "L";
         }
         path_str += "Z";
-        svg_file << "<path d=\"" << path_str << "\" fill=\"" << "rgb(" << intensities[i]*255 << ", " << intensities[i]*255 << ", " << intensities[i]*255 << ")\" stroke=\"black\" stroke-width=\"" << 1.0 << "\"/>\n";
+        svg_file << "<path d=\"" << path_str << "\" fill=\"" << "rgb(" << intensities[i]*255 << ", " << intensities[i]*255 << ", " << intensities[i]*255 << ")\" stroke=\"red\" stroke-width=\"" << 1.0 << "\"/>\n";
     }
 
     // Write SVG footer
@@ -88,12 +88,103 @@ std::vector<double> scale_array_proportional(const std::vector<double>& arr, dou
     return scaled_array;
 }
 
+std::vector<std::vector<double>> scale_matrix_proportional(const std::vector<std::vector<double>>& matrix, double min_value, double max_value) {
+    size_t rows = matrix.size();
+    size_t cols = matrix[0].size();
+
+    // Find the min and max values in the matrix
+    double matrix_min = matrix[0][0];
+    double matrix_max = matrix[0][0];
+
+    for (size_t i = 0; i < rows; ++i) {
+        for (size_t j = 0; j < cols; ++j) {
+            matrix_min = std::min(matrix_min, matrix[i][j]);
+            matrix_max = std::max(matrix_max, matrix[i][j]);
+        }
+    }
+
+    // Perform proportional scaling
+    std::vector<std::vector<double>> scaled_matrix(rows, std::vector<double>(cols));
+
+    for (size_t i = 0; i < rows; ++i) {
+        for (size_t j = 0; j < cols; ++j) {
+            scaled_matrix[i][j] = min_value + (max_value - min_value) * (matrix[i][j] - matrix_min) / (matrix_max - matrix_min);
+        }
+    }
+
+    return scaled_matrix;
+}
+
+std::vector<std::vector<std::vector<double>>> calculate_gradient(const std::vector<std::vector<double>>& grid) {
+    int width = static_cast<int>(grid[0].size());
+    int height = static_cast<int>(grid.size());
+
+    std::vector<std::vector<std::vector<double>>> gradient3D(2, std::vector<std::vector<double>>(height, std::vector<double>(width, 0.0)));
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            // Calculate x gradient
+            gradient3D[0][y][x] = (grid[y][std::min(x + 1, width - 1)] - grid[y][std::max(x - 1, 0)]) / 2.0;
+
+            // Calculate y gradient
+            gradient3D[1][y][x] = (grid[std::min(y + 1, height - 1)][x] - grid[std::max(y - 1, 0)][x]) / 2.0;
+        }
+    }
+
+    return gradient3D;
+}
+
+void subtractAverage(std::vector<std::vector<double>>& raster) {
+    // Calculate the average of the raster
+    double sum = 0.0;
+    int count = 0;
+
+    for (const auto& row : raster) {
+        for (double value : row) {
+            sum += value;
+            count++;
+        }
+    }
+
+    double average = sum / count;
+
+    // Subtract the average from each element of the raster
+    for (auto& row : raster) {
+        std::transform(row.begin(), row.end(), row.begin(), [average](double value) {
+            return value - average;
+        });
+    }
+}
+
+void save_grid_as_image(std::vector<std::vector<double>>& img, int resolution_x, int resolution_y, std::string filename) {
+    // Convert the 'raster' data to a suitable format for OpenCV
+    cv::Mat image(resolution_y, resolution_x, CV_64FC1);
+
+    for (int i = 0; i < resolution_y; ++i) {
+        for (int j = 0; j < resolution_x; ++j) {
+            image.at<double>(i, j) = img[i][j];
+        }
+    }
+
+    // Normalize the values to the range [0, 255]
+    cv::normalize(image, image, 0, 255, cv::NORM_MINMAX);
+
+    // Convert to 8-bit unsigned integer format
+    image.convertTo(image, CV_8UC1);
+
+    // Save the image as a PNG
+    cv::imwrite(filename, image);
+}
+
 int main(int argc, char const *argv[])
 {
-    int resolution_x = 500;
-    int resolution_y = 500;
+    int resolution_x = 300;
+    int resolution_y = 300;
 
-    std::string image_path = cv::samples::findFile("../img/lena.png");
+    std::vector<std::vector<double>> phi;
+    std::vector<double> errors;
+
+    std::string image_path = cv::samples::findFile("../img/sig4.png");
     cv::Mat img = cv::imread(image_path, cv::IMREAD_COLOR);
     if(img.empty())
     {
@@ -108,36 +199,89 @@ int main(int argc, char const *argv[])
     std::vector<std::vector<double>> pixels;
     image_to_grid(scaledImg, pixels);
 
-    //show_grid(pixels, resolution_x, resolution_y);
-
-    std::vector<std::vector<double>> image_grid;
-    for (int i = 0; i < resolution_x; ++i) {
-        std::vector<double> row;
-        for (int j = 0; j < resolution_y; ++j) {
-            row.push_back(0.0f);
-        }
-        image_grid.push_back(row);
-    }
-
-    //poisson_solver(pixels, image_grid, resolution_x, resolution_y, 1000, 0.0000001);
-
-    //show_grid(image_grid, resolution_x, resolution_y);
-
-    Mesh mesh(1.0f, 1.0f, 10, 10);
+    Mesh mesh(1.0f, 1.0f, 100, 100);
 
     std::cout << "built mesh" << std::endl;
 
-    mesh.export_to_svg("../output.svg", 1.0f);
-
-    std::vector<polygon_t> cells = mesh.build_dual_cells();
+    std::vector<std::vector<std::vector<double>>> cells;
+    mesh.build_target_dual_cells(cells);
 
     std::cout << "generated dual cells" << std::endl;
 
-    std::vector<double> target_areas = get_target_areas(pixels, cells, 500, 500, 1.0f, 1.0f);
-    std::vector<double> source_areas = get_source_areas(cells, 1.0f, 1.0f);
-
-    export_cells_as_svg(cells, scale_array_proportional(target_areas, 0.0f, 1.0f));
+    std::vector<double> target_areas = get_target_areas(pixels, cells, resolution_x, resolution_y, 1.0f, 1.0f);
     
-    printf("hello world!\r\n");
+    for (int itr=0; itr<25; itr++) {
+        cells.clear();
+        mesh.build_target_dual_cells(cells);
+
+        std::vector<double> source_areas = get_source_areas(cells);
+
+        errors.clear();
+        for (int i=0; i<target_areas.size(); i++) {
+            errors.push_back(target_areas[i] - source_areas[i]);
+        }
+
+        double error_sum = 0;
+        for (int i=0; i<target_areas.size(); i++) {
+            errors[i] = errors[i] / calculate_polygon_area_vec(cells[i]);
+            error_sum += errors[i];
+        }
+        double average = error_sum / target_areas.size();
+
+        for (int i=0; i<target_areas.size(); i++) {
+            errors[i] -= average;
+        }
+
+        export_cells_as_svg(cells, scale_array_proportional(errors, 0.0f, 1.0f), "../cells.svg");
+        
+        printf("hello world!\r\n");
+
+        mesh.build_bvh(1, 30);
+
+        std::vector<std::vector<double>> raster = mesh.interpolate_raster(errors, resolution_x, resolution_y);
+
+        printf("interpolated\r\n");
+
+        mesh.export_to_svg("../output.svg", 1.0f);
+
+        save_grid_as_image(raster, resolution_x, resolution_y, "../interpolated.png");
+
+        //show_grid(scale_matrix_proportional(raster, 0.0f, 1.0f), resolution_x, resolution_y);
+
+        phi.clear();
+        for (int i = 0; i < resolution_x; ++i) {
+            std::vector<double> row;
+            for (int j = 0; j < resolution_y; ++j) {
+                row.push_back(0.0f);
+            }
+            phi.push_back(row);
+        }
+
+        subtractAverage(raster);
+        poisson_solver(raster, phi, resolution_x, resolution_y, 100000, 0.0000001);
+
+        save_grid_as_image(phi, resolution_x, resolution_y, "../phi.png");
+
+        //show_grid(scale_matrix_proportional(phi, 0.0f, 1.0f), resolution_x, resolution_y);
+
+        std::vector<std::vector<std::vector<double>>> grad = calculate_gradient(phi);
+
+        save_grid_as_image(grad[0], resolution_x, resolution_y, "../grad_x.png");
+
+        //show_grid(scale_matrix_proportional(grad[0], 0.0f, 1.0f), resolution_x, resolution_y);
+        //show_grid(scale_matrix_proportional(grad[1], 0.0f, 1.0f), resolution_x, resolution_y);
+        
+        std::vector<std::vector<double>> gradient = integrate_cell_gradients(grad, cells, resolution_x, resolution_y, 1.0f, 1.0f);
+
+        export_cells_as_svg(cells, scale_array_proportional(gradient[0], 0.0f, 1.0f), "../grad_x.svg");
+        export_cells_as_svg(cells, scale_array_proportional(gradient[1], 0.0f, 1.0f), "../grad_y.svg");
+
+        printf("integrated\r\n");
+
+        mesh.step_grid(gradient[0], gradient[1], 0.3);
+
+        mesh.export_to_svg("../output.svg", 1.0f);
+    }
+
     return 0;
 }

@@ -7,6 +7,9 @@ Mesh::Mesh(double width, double height, int res_x, int res_y)
     this->res_x = res_x;
     this->res_y = res_y;
 
+    this->source_points.clear();
+    this->target_points.clear();
+
     generate_structured_mesh(res_x, res_y, width, height, this->triangles, this->target_points);
     build_vertex_to_triangles();
 
@@ -14,10 +17,17 @@ Mesh::Mesh(double width, double height, int res_x, int res_y)
     for (int i=0; i<this->target_points.size(); i++) {
         this->source_points.push_back(this->target_points[i]);
     }
+
+    bvh = new Bvh(triangles, target_points);
 }
 
 Mesh::~Mesh()
 {
+    delete(bvh);
+}
+
+void Mesh::build_bvh(int targetCellSize, int maxDepth) {
+    bvh->build(1, 50);
 }
 
 void Mesh::generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<std::vector<double>> &points) {
@@ -80,7 +90,7 @@ void Mesh::export_to_svg(std::string filename, double stroke_width) {
         for (std::size_t j = 0; j < poly_points.size(); ++j) {
             const auto& point = poly_points[j];
             path_str += std::to_string((point[0] / (double)width) * 1000.0f) + "," +
-                        std::to_string((1 - point[1] / (double)height) * 1000.0f * ((double)height / (double)width));
+                        std::to_string((point[1] / (double)height) * 1000.0f * ((double)height / (double)width));
 
             if (j < poly_points.size() - 1)
                 path_str += "L";
@@ -137,7 +147,7 @@ std::pair<std::vector<std::pair<int, int>>, std::vector<int>> Mesh::find_adjacen
     return std::make_pair(adjacent_edges_vector, adjacent_triangles_vector);
 }
 
-polygon_t Mesh::get_barycentric_dual_cell(int point) {
+polygon_t Mesh::get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points) {
     std::vector<std::pair<int, int>> adjacent_edges;
     std::vector<int> adjacent_triangles;
 
@@ -154,9 +164,9 @@ polygon_t Mesh::get_barycentric_dual_cell(int point) {
         int triangle_index = adjacent_triangles[i];
 
         const std::vector<int>& triangle = this->triangles[triangle_index];
-        const std::vector<double>& p1 = this->target_points[triangle[0]];
-        const std::vector<double>& p2 = this->target_points[triangle[1]];
-        const std::vector<double>& p3 = this->target_points[triangle[2]];
+        const std::vector<double>& p1 = points[triangle[0]];
+        const std::vector<double>& p2 = points[triangle[1]];
+        const std::vector<double>& p3 = points[triangle[2]];
 
         // Centroid of the triangle
         double centroid_x = (p1[0] + p2[0] + p3[0]) / 3.0;
@@ -168,8 +178,8 @@ polygon_t Mesh::get_barycentric_dual_cell(int point) {
     for (int i=0; i<adjacent_edges.size(); i++) {
         std::pair<int, int> edge = adjacent_edges[i];
 
-        const std::vector<double>& p1 = this->target_points[edge.first];
-        const std::vector<double>& p2 = this->target_points[edge.second];
+        const std::vector<double>& p1 = points[edge.first];
+        const std::vector<double>& p2 = points[edge.second];
 
         // Centroid of the edge
         double centroid_x = (p1[0] + p2[0]) / 2.0;
@@ -179,7 +189,7 @@ polygon_t Mesh::get_barycentric_dual_cell(int point) {
     }
 
     if (adjacent_triangles.size() <= 3) {
-        dual_points.push_back(this->target_points[point]);
+        dual_points.push_back(points[point]);
     }
 
     // Order points based on angles with respect to the centroid
@@ -214,16 +224,178 @@ polygon_t Mesh::get_barycentric_dual_cell(int point) {
     return polygon;
 }
 
-std::vector<polygon_t> Mesh::build_dual_cells() {
-    std::vector<polygon_t> cells;
-
-    for (int i=0; i<this->target_points.size(); i++)
-    {
-        polygon_t cell = get_barycentric_dual_cell(i);
+void Mesh::build_target_dual_cells(std::vector<polygon_t> &cells) {
+    for (int i=0; i<this->target_points.size(); i++) {
+        polygon_t cell = get_barycentric_dual_cell(i, this->target_points);
         cells.push_back(cell);
     }
-
-    return cells;
 }
 
+// Assuming points is a vector of pairs of doubles
+std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<double>& errors, int res_x, int res_y) {
+    // Creating x and y vectors
+    std::vector<double> x(res_x);
+    std::vector<double> y(res_y);
 
+    for (int i = 0; i < res_x; ++i)
+        x[i] = static_cast<double>(i) * width / static_cast<double>(res_x - 1);
+
+    for (int i = 0; i < res_y; ++i)
+        y[i] = static_cast<double>(i) * height / static_cast<double>(res_y - 1);
+
+    // Creating xv and yv matrices using meshgrid
+    std::vector<std::vector<double>> xv(res_y, std::vector<double>(res_x, 0.0));
+    std::vector<std::vector<double>> yv(res_y, std::vector<double>(res_x, 0.0));
+
+    for (int i = 0; i < res_y; ++i) {
+        for (int j = 0; j < res_x; ++j) {
+            xv[i][j] = x[j];
+            yv[i][j] = y[i];
+        }
+    }
+    
+    std::vector<std::vector<double>> raster;
+    for (int i = 0; i < res_y; ++i) {
+        std::vector<double> row;
+        for (int j = 0; j < res_x; ++j) {
+            std::vector<double> point = {xv[i][j], yv[i][j]};
+            Hit hit;
+            bool intersection = false;
+            bvh->query(point, hit, intersection);
+            if (intersection) {
+                std::vector<double> vertex_values;
+                vertex_values.push_back(errors[triangles[hit.face_id][0]]);
+                vertex_values.push_back(errors[triangles[hit.face_id][1]]);
+                vertex_values.push_back(errors[triangles[hit.face_id][2]]);
+                double interpolation = 
+                    vertex_values[0]*hit.barycentric_coords[0] + 
+                    vertex_values[1]*hit.barycentric_coords[1] + 
+                    vertex_values[2]*hit.barycentric_coords[2];
+                row.push_back(interpolation);
+            } else {
+                row.push_back(1.0f);
+            }
+        }
+        
+        raster.push_back(row);
+    }
+
+    return raster;
+}
+
+std::vector<double> find_t(const std::vector<double>& p1, const std::vector<double>& p2, const std::vector<double>& p3,
+                              const std::vector<double>& dp1, const std::vector<double>& dp2, const std::vector<double>& dp3) {
+    double x1 = p2[0] - p1[0], y1 = p2[1] - p1[1];
+    double x2 = p3[0] - p1[0], y2 = p3[1] - p1[1];
+    double u1 = dp2[0] - dp1[0], v1 = dp2[1] - dp1[1];
+    double u2 = dp3[0] - dp1[0], v2 = dp3[1] - dp1[1];
+
+    double a = u1 * v2 - u2 * v1;
+    double b = x1 * v1 - y1 * u1 - x2 * v1 + y2 * u1;
+    double c = x1 * y2 - x2 * y1;
+
+    std::vector<double> result = {-123.0, -123.0};  // Initialize with invalid values
+
+    if (a != 0) {
+        double quotient = b * b - (4 * a) * c;
+        if (quotient >= 0) {
+            double d = std::sqrt(quotient);
+            double t1 = (-b - d) / (2 * a);
+            double t2 = (-b + d) / (2 * a);
+
+            // Both t1 and t2 are valid
+            result[0] = t1;
+            result[1] = t2;
+        }
+    }
+
+    return result;
+}
+
+// Function to find the minimum delta_t values for each triangle
+double Mesh::find_min_delta_t(const std::vector<std::vector<double>>& velocities) {
+    std::vector<double> min_t_values;
+
+    for (const auto& triangle : this->triangles) {
+        std::vector<std::vector<double>> t_values;
+        t_values.push_back(find_t(target_points[triangle[0]], target_points[triangle[1]], target_points[triangle[2]], velocities[triangle[0]], velocities[triangle[1]], velocities[triangle[2]]));
+        t_values.push_back(find_t(target_points[triangle[1]], target_points[triangle[0]], target_points[triangle[2]], velocities[triangle[1]], velocities[triangle[0]], velocities[triangle[2]]));
+        t_values.push_back(find_t(target_points[triangle[2]], target_points[triangle[0]], target_points[triangle[1]], velocities[triangle[2]], velocities[triangle[0]], velocities[triangle[1]]));
+        t_values.push_back(find_t(target_points[triangle[0]], target_points[triangle[2]], target_points[triangle[1]], velocities[triangle[0]], velocities[triangle[2]], velocities[triangle[1]]));
+        t_values.push_back(find_t(target_points[triangle[2]], target_points[triangle[1]], target_points[triangle[0]], velocities[triangle[2]], velocities[triangle[1]], velocities[triangle[0]]));
+        t_values.push_back(find_t(target_points[triangle[1]], target_points[triangle[2]], target_points[triangle[0]], velocities[triangle[1]], velocities[triangle[2]], velocities[triangle[0]]));
+
+        //std::cout << "d" << std::endl;
+
+        // Ignore negative or zero values
+        std::vector<double> valid_t_values;
+        for (int i=0; i<t_values.size(); i++) {
+            if (t_values[i][0] > 0) {
+                valid_t_values.push_back(t_values[i][0]);
+            }
+            if (t_values[i][1] > 0) {
+                valid_t_values.push_back(t_values[i][1]);
+            }
+        }
+
+        //std::cout << valid_t_values.size() << std::endl;
+
+        //std::cout << "e" << std::endl;
+
+        if (!valid_t_values.empty()) {
+            min_t_values.push_back(*std::min_element(valid_t_values.begin(), valid_t_values.end()));
+        } else {
+            min_t_values.push_back(std::numeric_limits<double>::infinity());
+        }
+    }
+
+    // Calculate the minimum of the minimum delta_t values
+    return *std::min_element(min_t_values.begin(), min_t_values.end());
+}
+
+// Function to update points based on velocities and minimum delta_t
+void Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>& dfy, double step_size) {
+    std::vector<std::vector<double>> velocities;
+
+    // Populate velocities and delta_t
+    for (int i = 0; i < target_points.size(); i++) {
+        int y = i / res_y;
+        int x = i % res_y;
+
+        if (x == 0 && y == 0) {
+            velocities.push_back({0, 0});
+        } else if (x == 0 && y == res_y - 1) {
+            velocities.push_back({0, 0});
+        } else if (x == res_x - 1 && y == 0) {
+            velocities.push_back({0, 0});
+        } else if (x == res_x - 1 && y == res_y - 1) {
+            velocities.push_back({0, 0});
+        } else if (x == 0 && (y != 0 && y != res_y - 1)) {
+            velocities.push_back({0, dfy[i]});
+        } else if (x == res_x - 1 && (y != 0 && y != res_y - 1)) {
+            velocities.push_back({0, dfy[i]});
+        } else if (y == 0 && (x != 0 && x != res_x - 1)) {
+            velocities.push_back({dfx[i], 0});
+        } else if (y == res_y - 1 && (x != 0 && x != res_x - 1)) {
+            velocities.push_back({dfx[i], 0});
+        } else if (x != 0 && x != res_x - 1 && y != 0 && y != res_y - 1) {
+            velocities.push_back({dfx[i], dfy[i]});
+        }
+    }
+
+    // Apply regularization to the velocity field if needed
+    // for (size_t i = 0; i < velocities.size(); ++i) {
+    //     double regularization_term = regularization_coeff * std::sqrt(std::pow(velocities[i][0], 2) + std::pow(velocities[i][1], 2));
+    //     velocities[i][0] -= regularization_term * velocities[i][0];
+    //     velocities[i][1] -= regularization_term * velocities[i][1];
+    // }
+
+    double min_t = find_min_delta_t(velocities);
+    std::cout << "min_t = " << min_t << std::endl;
+
+    // Move vertices along the gradient
+    for (size_t i = 0; i < target_points.size(); ++i) {
+        target_points[i][0] += velocities[i][0] * min_t * step_size;
+        target_points[i][1] += velocities[i][1] * min_t * step_size;
+    }
+}
