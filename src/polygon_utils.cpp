@@ -191,7 +191,7 @@ double calculate_polygon_area(const poly_t *polygon) {
     return area;
 }
 
-double calculate_polygon_area(const std::vector<std::vector<double>> input_polygon) {
+double calculate_polygon_area_vec(const std::vector<std::vector<double>> input_polygon) {
     if (input_polygon.size() < 3) {
         return 0.0;
     }
@@ -211,6 +211,33 @@ double calculate_polygon_area(const std::vector<std::vector<double>> input_polyg
     area = 0.5 * (area);
 
     return area;
+}
+
+std::vector<double> calculate_polygon_centroid(std::vector<std::vector<double>> vertices) {
+    std::vector<double> centroid;
+    centroid.push_back(0.0);
+    centroid.push_back(0.0);
+
+    double signed_area = 0;
+
+    for (int i = 0; i < vertices.size(); i++) {
+        double x0 = vertices[i][0];
+        double y0 = vertices[i][1];
+        double x1 = vertices[(i + 1) % vertices.size()][0];
+        double y1 = vertices[(i + 1) % vertices.size()][1];
+
+        // Shoelace formula
+        double area = (x0 * y1) - (x1 * y0);
+        signed_area += area;
+        centroid[0] += (x0 + x1) * area;
+        centroid[1] += (y0 + y1) * area;
+    }
+
+    signed_area *= 0.5;
+    centroid[0] /= 6 * signed_area;
+    centroid[1] /= 6 * signed_area;
+
+    return centroid;
 }
 
 double integrate_intensity(poly_t **polygons, double *intensities, int num_polygons) {
@@ -304,12 +331,14 @@ double integrate_cell_intensities(std::vector<std::vector<double>> &image, std::
 
 			poly_t *result = poly_clip(polygon, pixel_poly);
 
-			intensity += calculate_polygon_area(result) * image[(image_h - y - 1)][x];
+			intensity += calculate_polygon_area(result) * image[y][x];
 
 			poly_free(pixel_poly);
 			poly_free(result);
         }
     }
+
+	poly_free(polygon);
 
     return intensity;
 }
@@ -332,50 +361,74 @@ std::vector<double> get_target_areas(std::vector<std::vector<double>> &image, st
 	return target_areas;
 }
 
-std::vector<double> get_source_areas(std::vector<std::vector<std::vector<double>>> &input_polygons, double width, double height) {
+std::vector<double> get_source_areas(std::vector<std::vector<std::vector<double>>> &input_polygons) {
 	std::vector<double> source_areas;
-	double sum_target_area = 0.0f;
 
 	for (int i=0; i<input_polygons.size(); i++) {
-		source_areas.push_back(calculate_polygon_area(input_polygons[i]));
-		sum_target_area += source_areas[i];
-	}
-
-	double scaling_factor = (width * height) / sum_target_area;
-
-	for (int i=0; i<input_polygons.size(); i++) {
-		source_areas[i] *= scaling_factor;
+		source_areas.push_back(calculate_polygon_area_vec(input_polygons[i]));
 	}
 
 	return source_areas;
 }
 
-void integrate_cell_gradient(double *grad_x, double *grad_y, poly_t *polygon, int grad_w, int grad_h, double width, double *interp_x, double *interp_y) {
+std::vector<std::vector<double>> integrate_cell_gradients(std::vector<std::vector<std::vector<double>>> &gradient, std::vector<std::vector<std::vector<double>>> &input_polygons, int image_w, int image_h, double width, double height) {
+	std::vector<std::vector<double>> integrated_gradient;
+
+	std::vector<double> x_gradient;
+	std::vector<double> y_gradient;
+
+	for (int i=0; i<input_polygons.size(); i++) {
+		double x_val = 0.0f;
+		double y_val = 0.0f;
+
+		integrate_cell_gradient(gradient[0], gradient[1], input_polygons[i], image_w, image_h, width, x_val, y_val);
+
+		x_gradient.push_back(x_val / calculate_polygon_area_vec(input_polygons[i]));
+		y_gradient.push_back(y_val / calculate_polygon_area_vec(input_polygons[i]));
+	}
+
+	integrated_gradient.push_back(x_gradient);
+	integrated_gradient.push_back(y_gradient);
+
+	return integrated_gradient;
+}
+
+void integrate_cell_gradient(std::vector<std::vector<double>> &grad_x, std::vector<std::vector<double>> &grad_y, std::vector<std::vector<double>> &input_polygon, int grad_w, int grad_h, double width, double &interp_x, double &interp_y) {
+	
+	poly_t *polygon = poly_new();
+	for (int i=0; i<input_polygon.size(); i++) {
+		vec_t point;
+		point.x = input_polygon[i][0];
+		point.y = input_polygon[i][1];
+		poly_append(polygon, &point);
+	}
+
 	bbox_t bbox = calculateBoundingBox(polygon);
 
 	vec_t square_vertices[4];
 
 	double intensity = 0.0;
 
-	for (int y = fmax(floor((bbox.ymin) * (((double)grad_w)/width)), 0); y < fmin(ceil((bbox.ymax) * (((double)grad_w)/width)), grad_h); ++y) {
-		for (int x = fmax(floor((bbox.xmin) * (((double)grad_w)/width)), 0); x < fmin(ceil((bbox.xmax) * (((double)grad_w)/width)), grad_w); x++) {
+	double px_side_length = width / ((double)grad_w);
+
+	for (int y = std::fmax(floor(bbox.ymin/px_side_length), 0.0f); y < std::fmin(ceil(bbox.ymax/px_side_length), grad_h); ++y) {
+		for (int x = std::fmax(floor(bbox.xmin/px_side_length), 0.0f); x < std::fmin(ceil(bbox.xmax/px_side_length), grad_w); x++) {
             double center[2] = {(double)x + 0.5, (double)y + 0.5};
-            double side_length = width / ((double)grad_w);
 
-			center[0] *= side_length;
-			center[1] *= side_length;
+			center[0] *= px_side_length;
+			center[1] *= px_side_length;
 
-			square_vertices[0].x = center[0] + side_length / 2.0f;
-			square_vertices[0].y = center[1] - side_length / 2.0f;
+			square_vertices[0].x = center[0] - px_side_length / 2.0f;
+			square_vertices[0].y = center[1] - px_side_length / 2.0f;
 
-			square_vertices[1].x = center[0] + side_length / 2.0f;
-			square_vertices[1].y = center[1] + side_length / 2.0f;
+			square_vertices[1].x = center[0] - px_side_length / 2.0f;
+			square_vertices[1].y = center[1] + px_side_length / 2.0f;
 
-			square_vertices[2].x = center[0] - side_length / 2.0f;
-			square_vertices[2].y = center[1] + side_length / 2.0f;
+			square_vertices[2].x = center[0] + px_side_length / 2.0f;
+			square_vertices[2].y = center[1] + px_side_length / 2.0f;
 
-			square_vertices[3].x = center[0] - side_length / 2.0f;
-			square_vertices[3].y = center[1] - side_length / 2.0f;
+			square_vertices[3].x = center[0] + px_side_length / 2.0f;
+			square_vertices[3].y = center[1] - px_side_length / 2.0f;
 
 			poly_t *pixel_poly = poly_new();
 			poly_append(pixel_poly, &(square_vertices[0]));
@@ -386,11 +439,13 @@ void integrate_cell_gradient(double *grad_x, double *grad_y, poly_t *polygon, in
 			poly_t *result = poly_clip(polygon, pixel_poly);
 
 			double area = calculate_polygon_area(result);
-			*interp_x += area * grad_x[(grad_h - y - 1) * grad_w + x];
-			*interp_y += area * grad_y[(grad_h - y - 1) * grad_w + x];
+			interp_x += area * grad_x[y][x];
+			interp_y += area * grad_y[y][x];
 
 			poly_free(pixel_poly);
 			poly_free(result);
         }
     }
+
+	poly_free(polygon);
 }

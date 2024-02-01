@@ -8,6 +8,7 @@ set(SOURCE_FILES
     src/polygon_utils.cpp
     src/solver.cpp
     src/mesh.cpp
+    src/bvh.cpp
     # Add more source files as needed
 )
 

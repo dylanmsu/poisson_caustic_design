@@ -1,6 +1,9 @@
 build
 .vscode
 
+*.svg
+*.png
+
 # Prerequisites
 *.d
 
