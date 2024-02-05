@@ -5,121 +5,81 @@
 
 #include "solver.h"
 
-void relax(std::vector<std::vector<double>> &matrix, std::vector<std::vector<double>> &D, int width, int height, double omega, double &max_update) {
+void relax(std::vector<std::vector<double>> &output, std::vector<std::vector<double>> &input, int width, int height, double omega, double &max_update) {
     int x, y;
     max_update = 0.0;
 
     for (y = 0; y < height; y++) {
         for (x = 0; x < width; x++) {
-            double val = matrix[y][x];
+            double val = output[y][x];
             double delta;
 
             if (x == 0 && y == 0) {
-                // Top left corner
-                double val_down = matrix[(y + 1)][x];
-                double val_right = matrix[(y)][(x + 1)];
-                delta = omega / 2 * (val_down + val_right - 2 * val - D[y][x]);
-                if (fabs(delta) > max_update) {
-                    max_update = fabs(delta);
-                }
-                matrix[y][x] += delta;
+                double val_down = output[(y + 1)][x];
+                double val_right = output[(y)][(x + 1)];
+                delta = omega / 2 * (val_down + val_right - 2 * val - input[y][x]);
             }
 
             else if (x == 0 && y == (height-1)) {
-                // Bottom left corner
-                double val_up = matrix[(y - 1)][x];
-                double val_right = matrix[(y)][(x + 1)];
-                delta = omega / 2 * (val_up + val_right - 2 * val - D[y][x]);
-                if (fabs(delta) > max_update) {
-                    max_update = fabs(delta);
-                }
-                matrix[y][x] += delta;
+                double val_up = output[(y - 1)][x];
+                double val_right = output[(y)][(x + 1)];
+                delta = omega / 2 * (val_up + val_right - 2 * val - input[y][x]);
             }
 
             else if (x == (width-1) && y == 0) {
-                // Top right corner
-                double val_down = matrix[(y + 1)][x];
-                double val_left = matrix[(y)][(x - 1)];
-                delta = omega / 2 * (val_down + val_left - 2 * val - D[y][x]);
-                if (fabs(delta) > max_update) {
-                    max_update = fabs(delta);
-                }
-                matrix[y][x] += delta;
+                double val_down = output[(y + 1)][x];
+                double val_left = output[(y)][(x - 1)];
+                delta = omega / 2 * (val_down + val_left - 2 * val - input[y][x]);
             }
 
             else if (x == (width-1) && y == (height-1)){
-                // Bottom right corner
-                double val_up = matrix[(y - 1)][x];
-                double val_left = matrix[(y)][(x - 1)];
-                delta = omega / 2 * (val_up + val_left - 2 * val - D[y][x]);
-                if (fabs(delta) > max_update) {
-                    max_update = fabs(delta);
-                }
-                matrix[y][x] += delta;
+                double val_up = output[(y - 1)][x];
+                double val_left = output[(y)][(x - 1)];
+                delta = omega / 2 * (val_up + val_left - 2 * val - input[y][x]);
             }
             
             else if (x == 0) {
-                // Along the left edge, but not the top or buttom corner
-                double val_up = matrix[(y - 1)][x];
-                double val_down = matrix[(y + 1)][x];
-                double val_right = matrix[(y)][(x + 1)];
-                delta = omega / 3 * (val_up + val_down + val_right - 3 * val - D[y][x]);
-                if (fabs(delta) > max_update) {
-                    max_update = fabs(delta);
-                }
-                matrix[y][x] += delta;
+                double val_up = output[(y - 1)][x];
+                double val_down = output[(y + 1)][x];
+                double val_right = output[(y)][(x + 1)];
+                delta = omega / 3 * (val_up + val_down + val_right - 3 * val - input[y][x]);
             }
 
             else if (x == (width-1)) {
-                // Along the right edge, but not the top or buttom corner
-                double val_up = matrix[(y - 1)][x];
-                double val_down = matrix[(y + 1)][x];
-                double val_left = matrix[(y)][(x - 1)];
-                delta = omega / 3 * (val_up + val_down + val_left - 3 * val - D[y][x]);
-                if (fabs(delta) > max_update) {
-                    max_update = fabs(delta);
-                }
-                matrix[y][x] += delta;
+                double val_up = output[(y - 1)][x];
+                double val_down = output[(y + 1)][x];
+                double val_left = output[(y)][(x - 1)];
+                delta = omega / 3 * (val_up + val_down + val_left - 3 * val - input[y][x]);
             }
 
             else if (y == 0) {
-                // Along the top edge, but not the left or right corner
-                double val_down = matrix[(y + 1)][x];
-                double val_left = matrix[(y)][(x - 1)];
-                double val_right = matrix[(y)][(x + 1)];
-                delta = omega / 3 * (val_down + val_left + val_right - 3 * val - D[y][x]);
-                if (fabs(delta) > max_update) {
-                    max_update = fabs(delta);
-                }
-                matrix[y][x] += delta;
+                double val_down = output[(y + 1)][x];
+                double val_left = output[(y)][(x - 1)];
+                double val_right = output[(y)][(x + 1)];
+                delta = omega / 3 * (val_down + val_left + val_right - 3 * val - input[y][x]);
             }
 
 
             else if (y == (height-1)) {
-                // Along the bottom edge, but not the left or right corner
-                double val_up = matrix[(y - 1)][x];
-                double val_left = matrix[(y)][(x - 1)];
-                double val_right = matrix[(y)][(x + 1)];
-                delta = omega / 3 * (val_up + val_left + val_right - 3 * val - D[y][x]);
-                if (fabs(delta) > max_update) {
-                    max_update = fabs(delta);
-                }
-                matrix[y][x] += delta;
+                double val_up = output[(y - 1)][x];
+                double val_left = output[(y)][(x - 1)];
+                double val_right = output[(y)][(x + 1)];
+                delta = omega / 3 * (val_up + val_left + val_right - 3 * val - input[y][x]);
             }
 
             else {
-                // The normal case, in the middle of the mesh!
-                double val_up = matrix[(y - 1)][x];
-                double val_down = matrix[(y + 1)][x];
-                double val_left = matrix[(y)][(x - 1)];
-                double val_right = matrix[(y)][(x + 1)];
-
-                delta = omega / 4 * (val_up + val_down + val_left + val_right - 4 * val - D[y][x]);
-                if (fabs(delta) > max_update) {
-                    max_update = fabs(delta);
-                }
-                matrix[y][x] += delta;
+                double val_up = output[(y - 1)][x];
+                double val_down = output[(y + 1)][x];
+                double val_left = output[(y)][(x - 1)];
+                double val_right = output[(y)][(x + 1)];
+                delta = omega / 4 * (val_up + val_down + val_left + val_right - 4 * val - input[y][x]);
             }
+
+            if (fabs(delta) > max_update) {
+                max_update = fabs(delta);
+            }
+
+            output[y][x] += delta;
         }
     }
 }

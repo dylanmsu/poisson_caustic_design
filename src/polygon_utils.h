@@ -42,6 +42,8 @@ void integrate_cell_gradient(std::vector<std::vector<double>> &grad_x, std::vect
 
 std::vector<std::vector<double>> integrate_cell_gradients(std::vector<std::vector<std::vector<double>>> &gradient, std::vector<std::vector<std::vector<double>>> &input_polygons, int image_w, int image_h, double width, double height);
 
+std::vector<double> integrate_grid_into_cells(std::vector<std::vector<double>> &image, std::vector<std::vector<std::vector<double>>> &input_polygons, int image_w, int image_h, double width, double height);
+
 std::vector<double> get_target_areas(std::vector<std::vector<double>> &image, std::vector<std::vector<std::vector<double>>> &input_polygons, int image_w, int image_h, double width, double height);
 std::vector<double> get_source_areas(std::vector<std::vector<std::vector<double>>> &input_polygons);
 
