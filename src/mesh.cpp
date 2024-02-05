@@ -231,6 +231,13 @@ void Mesh::build_target_dual_cells(std::vector<polygon_t> &cells) {
     }
 }
 
+void Mesh::build_source_dual_cells(std::vector<polygon_t> &cells) {
+    for (int i=0; i<this->source_points.size(); i++) {
+        polygon_t cell = get_barycentric_dual_cell(i, this->source_points);
+        cells.push_back(cell);
+    }
+}
+
 // Assuming points is a vector of pairs of doubles
 std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<double>& errors, int res_x, int res_y) {
     // Creating x and y vectors
@@ -281,6 +288,83 @@ std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<doub
     }
 
     return raster;
+}
+
+void Mesh::calculate_inverted_transport_map(std::string filename, double stroke_width) {
+    std::vector<std::vector<double>> raster;
+    for (int i=0; i<this->source_points.size(); ++i) {
+        std::vector<double> point = this->source_points[i];
+        Hit hit;
+        bool intersection = false;
+        bvh->query(point, hit, intersection);
+        if (intersection) {
+            std::vector<std::vector<double>> vertex_values;
+            vertex_values.push_back(source_points[this->triangles[hit.face_id][0]]);
+            vertex_values.push_back(source_points[this->triangles[hit.face_id][1]]);
+            vertex_values.push_back(source_points[this->triangles[hit.face_id][2]]);
+            
+            double interpolation_x = 
+                vertex_values[0][0]*hit.barycentric_coords[0] + 
+                vertex_values[1][0]*hit.barycentric_coords[1] + 
+                vertex_values[2][0]*hit.barycentric_coords[2];
+
+            double interpolation_y = 
+                vertex_values[0][1]*hit.barycentric_coords[0] + 
+                vertex_values[1][1]*hit.barycentric_coords[1] + 
+                vertex_values[2][1]*hit.barycentric_coords[2];
+
+            raster.push_back({interpolation_x, interpolation_y});
+        }
+    }
+
+    std::ofstream svg_file(filename, std::ios::out);
+    if (!svg_file.is_open()) {
+        std::cerr << "Error: Unable to open file " << filename << std::endl;
+    }
+
+    // Write SVG header
+    svg_file << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n";
+    svg_file << "<svg width=\"1000\" height=\"" << 1000.0f * ((double)height / (double)width) << "\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n";
+
+    svg_file << "<rect width=\"100%\" height=\"100%\" fill=\"white\"/>\n";
+
+    //int y = i / res_y;
+    //int x = i % res_y;
+    //int idx = y * this->res_x + x;
+
+    for (int j = 0; j < this->res_y; j++) {
+        std::string path_str = "M";
+        for (int i = 0; i < this->res_x; i++) {
+            int idx = j * this->res_x + i;
+
+            const auto& point = raster[idx];
+            path_str += std::to_string((point[0] / (double)width) * 1000.0f) + "," +
+                        std::to_string((point[1] / (double)height) * 1000.0f * ((double)height / (double)width));
+
+            if (i < this->res_x - 1)
+                path_str += "L";
+        }
+        svg_file << "<path d=\"" << path_str << "\" fill=\"none\" stroke=\"black\" stroke-width=\"" << stroke_width << "\"/>\n";
+    }
+
+    for (int j = 0; j < this->res_y; j++) {
+        std::string path_str = "M";
+        for (int i = 0; i < this->res_x; i++) {
+            int idx = i * this->res_x + j;
+
+            const auto& point = raster[idx];
+            path_str += std::to_string((point[0] / (double)width) * 1000.0f) + "," +
+                        std::to_string((point[1] / (double)height) * 1000.0f * ((double)height / (double)width));
+
+            if (i < this->res_x - 1)
+                path_str += "L";
+        }
+        svg_file << "<path d=\"" << path_str << "\" fill=\"none\" stroke=\"black\" stroke-width=\"" << stroke_width << "\"/>\n";
+    }
+
+    // Write SVG footer
+    svg_file << "</svg>\n";
+    svg_file.close();
 }
 
 std::vector<double> find_t(const std::vector<double>& p1, const std::vector<double>& p2, const std::vector<double>& p3,
@@ -354,7 +438,7 @@ double Mesh::find_min_delta_t(const std::vector<std::vector<double>>& velocities
 }
 
 // Function to update points based on velocities and minimum delta_t
-void Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>& dfy, double step_size) {
+double Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>& dfy, double step_size) {
     std::vector<std::vector<double>> velocities;
 
     // Populate velocities and delta_t
@@ -398,4 +482,158 @@ void Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>& 
         target_points[i][0] += velocities[i][0] * min_t * step_size;
         target_points[i][1] += velocities[i][1] * min_t * step_size;
     }
+
+    return min_t;
+}
+
+void Mesh::export_paramererization_to_svg(std::string filename, double stroke_width) {
+    std::ofstream svg_file(filename, std::ios::out);
+    if (!svg_file.is_open()) {
+        std::cerr << "Error: Unable to open file " << filename << std::endl;
+    }
+
+    // Write SVG header
+    svg_file << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n";
+    svg_file << "<svg width=\"1000\" height=\"" << 1000.0f * ((double)height / (double)width) << "\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n";
+
+    svg_file << "<rect width=\"100%\" height=\"100%\" fill=\"white\"/>\n";
+
+    //int y = i / res_y;
+    //int x = i % res_y;
+    //int idx = y * this->res_x + x;
+
+    for (int j = 0; j < this->res_y; j++) {
+        std::string path_str = "M";
+        for (int i = 0; i < this->res_x; i++) {
+            int idx = j * this->res_x + i;
+
+            const auto& point = target_points[idx];
+            path_str += std::to_string((point[0] / (double)width) * 1000.0f) + "," +
+                        std::to_string((point[1] / (double)height) * 1000.0f * ((double)height / (double)width));
+
+            if (i < this->res_x - 1)
+                path_str += "L";
+        }
+        svg_file << "<path d=\"" << path_str << "\" fill=\"none\" stroke=\"black\" stroke-width=\"" << stroke_width << "\"/>\n";
+    }
+
+    for (int j = 0; j < this->res_y; j++) {
+        std::string path_str = "M";
+        for (int i = 0; i < this->res_x; i++) {
+            int idx = i * this->res_x + j;
+
+            const auto& point = target_points[idx];
+            path_str += std::to_string((point[0] / (double)width) * 1000.0f) + "," +
+                        std::to_string((point[1] / (double)height) * 1000.0f * ((double)height / (double)width));
+
+            if (i < this->res_x - 1)
+                path_str += "L";
+        }
+        svg_file << "<path d=\"" << path_str << "\" fill=\"none\" stroke=\"black\" stroke-width=\"" << stroke_width << "\"/>\n";
+    }
+
+    // Write SVG footer
+    svg_file << "</svg>\n";
+    svg_file.close();
+}
+
+std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal_len, double refractive_index) {
+    std::vector<double> x_normals;
+    std::vector<double> y_normals;
+
+    for (int i=0; i<this->target_points.size(); i++) {
+        double dx = this->source_points[i][0] - this->target_points[i][0];
+        double dy = this->source_points[i][1] - this->target_points[i][1];
+        double dz = this->source_points[i][2] - this->target_points[i][2];
+
+        double k = refractive_index * std::sqrt((dx * dx + dy * dy) + (focal_len - dz) * (focal_len - dz)) - (focal_len - dz);
+
+        x_normals.push_back((1.0f / k) * dx);
+        y_normals.push_back((1.0f / k) * dy);
+    }
+
+    return {x_normals, y_normals};
+}
+
+void Mesh::set_source_heights(std::vector<double> heights) {
+    for (int i=0; i<heights.size(); i++) {
+        this->source_points[i][2] = -heights[i];
+    }
+}
+
+void find_perimeter_vertices(int nx, int ny, std::vector<int> &perimeter_vertices) {
+    // Top row
+    for (int i = 0; i < nx; ++i) {
+        perimeter_vertices.push_back(i);
+    }
+
+    // Right column
+    for (int i = nx - 1; i < nx * ny; i += nx) {
+        perimeter_vertices.push_back(i);
+    }
+
+    // Bottom row
+    for (int i = nx * (ny - 1) + nx - 1; i > nx * (ny - 1) - 1; --i) {
+        perimeter_vertices.push_back(i);
+    }
+
+    // Left column
+    for (int i = nx * (ny - 1) - nx; i > nx - 1; i -= nx) {
+        perimeter_vertices.push_back(i);
+    }
+}
+
+void Mesh::save_solid_obj(double thickness, const std::string& filename) {
+    int num_points = this->source_points.size();
+    std::vector<int> perimeter_verts;
+    find_perimeter_vertices(this->res_x, this->res_y, perimeter_verts);
+
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Error opening file: " << filename << std::endl;
+        return;
+    }
+
+    double max_h = 0;
+    for (int i=0; i<num_points; i++) {
+        double h = this->source_points[i][2];
+
+        if (max_h < h) {
+            max_h = h;
+        }
+    }
+
+    // Curved mesh verts on the bottom
+    for (const auto& point : this->source_points) {
+        file << "v " << point[0] << " " << this->res_y - 1 - point[1] << " " << -point[2] - max_h << "\n";
+    }
+
+    // Flat mesh verts on the bottom
+    for (const auto& point : this->source_points) {
+        file << "v " << point[0] << " " << this->res_y - 1 - point[1] << " " << -thickness << "\n";
+    }
+
+    // Curved mesh triangles on the top
+    for (const auto& triangle : this->triangles) {
+        file << "f " << triangle[0] + 1 << " " << triangle[1] + 1 << " " << triangle[2] + 1 << "\n";
+    }
+
+    // Flat mesh triangles on the bottom
+    for (const auto& triangle : this->triangles) {
+        file << "f " << triangle[0] + num_points + 1 << " " << triangle[2] + num_points + 1 << " " << triangle[1] + num_points + 1 << "\n";
+    }
+
+    // Generate triangles connecting top and bottom mesh
+    for (size_t i = 0; i < perimeter_verts.size(); ++i) {
+        int top_idx = perimeter_verts[i];
+        int bottom_idx = perimeter_verts[i] + num_points;
+        int next_top_idx = perimeter_verts[(i + 1) % perimeter_verts.size()];
+        int next_bottom_idx = perimeter_verts[(i + 1) % perimeter_verts.size()] + num_points;
+
+
+        file << "f " << top_idx + 1 << " " << bottom_idx + 1 << " " << next_bottom_idx + 1 << "\n";
+        file << "f " << top_idx + 1 << " " << next_bottom_idx + 1 << " " << next_top_idx + 1 << "\n";
+    }
+
+    std::cout << "Exported model \"" << filename << "\"" << std::endl;
 }
