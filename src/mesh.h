@@ -13,8 +13,6 @@
 
 #include "bvh.h"
 
-typedef std::vector<std::vector<double>> polygon_t;
-
 struct HashPair {
     template <class T1, class T2>
     std::size_t operator () (const std::pair<T1, T2>& p) const {
@@ -54,9 +52,9 @@ class Mesh {
         void export_to_svg(std::string filename, double stroke_width);
         void export_paramererization_to_svg(std::string filename, double stroke_width);
 
-        polygon_t get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points);
-        void build_target_dual_cells(std::vector<polygon_t> &cells);
-        void build_source_dual_cells(std::vector<polygon_t> &cells);
+        std::vector<std::vector<double>> get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points);
+        void build_target_dual_cells(std::vector<std::vector<std::vector<double>>> &cells);
+        void build_source_dual_cells(std::vector<std::vector<std::vector<double>>> &cells);
 
         std::vector<std::vector<double>> interpolate_raster(const std::vector<double>& errors, int res_x, int res_y);
 
