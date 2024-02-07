@@ -1,5 +1,13 @@
 #include "bvh.h"
 
+// the implementation was heavily based on the work of Gael Guennebaud at https://github.com/ggael/otmap
+
+// Copyright (C) 2016-2018 Gael Guennebaud <gael.guennebaud@inria.fr>
+//
+// This Source Code Form is subject to the terms of the Mozilla
+// Public License v. 2.0. If a copy of the MPL was not distributed
+// with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 Bvh::Bvh(std::vector<std::vector<int>> &triangles, std::vector<std::vector<double>> &points)
     :triangles(triangles), points(points)
 {
@@ -10,15 +18,19 @@ Bvh::~Bvh()
 }
 
 void Bvh::build(int targetCellSize, int maxDepth) {
+    // Reset tree data
     centroids.clear();
     sorted_triangle_ids.clear();
     nodes.clear();
 
+    // Sdd the first empty node
     nodes.resize(1);
     
+    // Set size beforehand
     centroids.resize(triangles.size());
     sorted_triangle_ids.resize(triangles.size());
 
+    // Initialize the tree data with centroids and triangle indices
     for (int i=0; i<triangles.size(); i++) {
         std::vector<std::vector<double>> triangle;
         triangle.resize(triangles[i].size());
@@ -31,8 +43,11 @@ void Bvh::build(int targetCellSize, int maxDepth) {
         sorted_triangle_ids[i] = i;
     }
 
+    // Build the BHV-tree recursively 
     buildNode(0, 0, triangles.size(), 0, targetCellSize, maxDepth);
 }
+
+
 
 int Bvh::split(int start, int end, int dim, float split_value)
 {

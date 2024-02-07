@@ -147,7 +147,7 @@ std::pair<std::vector<std::pair<int, int>>, std::vector<int>> Mesh::find_adjacen
     return std::make_pair(adjacent_edges_vector, adjacent_triangles_vector);
 }
 
-polygon_t Mesh::get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points) {
+std::vector<std::vector<double>> Mesh::get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points) {
     std::vector<std::pair<int, int>> adjacent_edges;
     std::vector<int> adjacent_triangles;
 
@@ -158,7 +158,7 @@ polygon_t Mesh::get_barycentric_dual_cell(int point, std::vector<std::vector<dou
     adjacent_triangles = adjacent_elements.second;
 
     // Calculate dual points
-    polygon_t dual_points;
+    std::vector<std::vector<double>> dual_points;
 
     for (int i=0; i<adjacent_triangles.size(); i++) {
         int triangle_index = adjacent_triangles[i];
@@ -216,7 +216,7 @@ polygon_t Mesh::get_barycentric_dual_cell(int point, std::vector<std::vector<dou
         return angles[a] < angles[b];
     });
 
-    polygon_t polygon;
+    std::vector<std::vector<double>> polygon;
     for (size_t index : order) {
         polygon.push_back(dual_points[index]);
     }
@@ -224,16 +224,16 @@ polygon_t Mesh::get_barycentric_dual_cell(int point, std::vector<std::vector<dou
     return polygon;
 }
 
-void Mesh::build_target_dual_cells(std::vector<polygon_t> &cells) {
+void Mesh::build_target_dual_cells(std::vector<std::vector<std::vector<double>>> &cells) {
     for (int i=0; i<this->target_points.size(); i++) {
-        polygon_t cell = get_barycentric_dual_cell(i, this->target_points);
+        std::vector<std::vector<double>> cell = get_barycentric_dual_cell(i, this->target_points);
         cells.push_back(cell);
     }
 }
 
-void Mesh::build_source_dual_cells(std::vector<polygon_t> &cells) {
+void Mesh::build_source_dual_cells(std::vector<std::vector<std::vector<double>>> &cells) {
     for (int i=0; i<this->source_points.size(); i++) {
-        polygon_t cell = get_barycentric_dual_cell(i, this->source_points);
+        std::vector<std::vector<double>> cell = get_barycentric_dual_cell(i, this->source_points);
         cells.push_back(cell);
     }
 }
@@ -605,22 +605,22 @@ void Mesh::save_solid_obj(double thickness, const std::string& filename) {
 
     // Curved mesh verts on the bottom
     for (const auto& point : this->source_points) {
-        file << "v " << point[0] << " " << this->res_y - 1 - point[1] << " " << -point[2] - max_h << "\n";
+        file << "v " << point[0] << " " << 1.0f - point[1] << " " << -point[2] - max_h << "\n";
     }
 
     // Flat mesh verts on the bottom
     for (const auto& point : this->source_points) {
-        file << "v " << point[0] << " " << this->res_y - 1 - point[1] << " " << -thickness << "\n";
+        file << "v " << point[0] << " " << 1.0f - point[1] << " " << -thickness << "\n";
     }
 
     // Curved mesh triangles on the top
     for (const auto& triangle : this->triangles) {
-        file << "f " << triangle[0] + 1 << " " << triangle[1] + 1 << " " << triangle[2] + 1 << "\n";
+        file << "f " << triangle[0] + 1 << " " << triangle[2] + 1 << " " << triangle[1] + 1 << "\n";
     }
 
     // Flat mesh triangles on the bottom
     for (const auto& triangle : this->triangles) {
-        file << "f " << triangle[0] + num_points + 1 << " " << triangle[2] + num_points + 1 << " " << triangle[1] + num_points + 1 << "\n";
+        file << "f " << triangle[0] + num_points + 1 << " " << triangle[1] + num_points + 1 << " " << triangle[2] + num_points + 1 << "\n";
     }
 
     // Generate triangles connecting top and bottom mesh
@@ -631,8 +631,8 @@ void Mesh::save_solid_obj(double thickness, const std::string& filename) {
         int next_bottom_idx = perimeter_verts[(i + 1) % perimeter_verts.size()] + num_points;
 
 
-        file << "f " << top_idx + 1 << " " << bottom_idx + 1 << " " << next_bottom_idx + 1 << "\n";
-        file << "f " << top_idx + 1 << " " << next_bottom_idx + 1 << " " << next_top_idx + 1 << "\n";
+        file << "f " << top_idx + 1 << " " << next_bottom_idx + 1 << " " << bottom_idx + 1 << "\n";
+        file << "f " << top_idx + 1 << " " << next_top_idx + 1 << " " << next_bottom_idx + 1 << "\n";
     }
 
     std::cout << "Exported model \"" << filename << "\"" << std::endl;
