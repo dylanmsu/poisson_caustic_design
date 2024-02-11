@@ -47,8 +47,6 @@ void Bvh::build(int targetCellSize, int maxDepth) {
     buildNode(0, 0, triangles.size(), 0, targetCellSize, maxDepth);
 }
 
-
-
 int Bvh::split(int start, int end, int dim, float split_value)
 {
     int left = start, right = end - 1;
@@ -98,7 +96,6 @@ void Bvh::buildNode(int nodeId, int start, int end, int level, int targetCellSiz
         }
     }
 
-    // Your existing code to calculate epsilon
     double epsilon = std::numeric_limits<double>::epsilon();
 
     // Enlarge the bounding box by epsilon
@@ -192,12 +189,6 @@ std::vector<double> get_barycentric_coordinates(const std::vector<double>& t0, c
     return {u, v, w};
 }
 
-void printBoundingBox(const Node& node) {
-    std::cout << "Bounding Box: "
-              << "Min X: " << node.bbox_min_x << ", Max X: " << node.bbox_max_x
-              << ", Min Y: " << node.bbox_min_y << ", Max Y: " << node.bbox_max_y << std::endl;
-}
-
 bool is_inside_bbox(const Node &node, const std::vector<double> &point) {
     return node.bbox_min_x <= point[0] && point[0] <= node.bbox_max_x && node.bbox_min_y <= point[1] && point[1] <= node.bbox_max_y;
 }
@@ -207,11 +198,7 @@ void Bvh::intersectNode(int nodeId, std::vector<double> &point, Hit &hit, bool &
     if(nodes[nodeId].is_leaf)
     {
         if (is_inside_bbox(nodes[nodeId], point)) {
-            //printBoundingBox(node);
-            //std::cout << "POINT: " << "X: " << point[0] << ", Y: " << point[1] << std::endl;
             for(int i=nodes[nodeId].first_face_id; i<nodes[nodeId].first_face_id + nodes[nodeId].nb_faces; ++i) {
-                //printf("node.first_face_id = %i\r\n", nodes[nodeId].first_face_id);
-                //printf("nodeId = %i\r\n", nodeId);
                 std::vector<double> bary_coord = get_barycentric_coordinates(points[triangles[sorted_triangle_ids[i]][2]], points[triangles[sorted_triangle_ids[i]][1]], points[triangles[sorted_triangle_ids[i]][0]], point);
                 double eps = 1e-10;
 
@@ -222,17 +209,10 @@ void Bvh::intersectNode(int nodeId, std::vector<double> &point, Hit &hit, bool &
                     hit.face_id = sorted_triangle_ids[i];
                     found = true;
                     return;
-                } else {
-                    //std::cout << "i = " << i << std::endl;
-                    //std::cout << "Point: " << "X: " << point[0] << ", Y: " << point[1] << std::endl;
-                    //std::cout << "tria0: " << "X: " << points[triangles[i][0]][0] << ", Y: " << points[triangles[i][0]][1] << std::endl;
-                    //std::cout << "tria1: " << "X: " << points[triangles[i][1]][0] << ", Y: " << points[triangles[i][1]][1] << std::endl;
-                    //std::cout << "tria2: " << "X: " << points[triangles[i][2]][0] << ", Y: " << points[triangles[i][2]][1] << std::endl;
-                    //printBoundingBox(node);
                 }
             }
         } else {
-            std::cout << "point is not inside bbox" << std::endl;
+            //std::cout << "point is not inside bbox" << std::endl;
         }
     }
     else

@@ -229,6 +229,7 @@ void Mesh::build_target_dual_cells(std::vector<std::vector<std::vector<double>>>
         std::vector<std::vector<double>> cell = get_barycentric_dual_cell(i, this->target_points);
         cells.push_back(cell);
     }
+    printf("test\r\n");
 }
 
 void Mesh::build_source_dual_cells(std::vector<std::vector<std::vector<double>>> &cells) {
@@ -400,16 +401,15 @@ std::vector<double> find_t(const std::vector<double>& p1, const std::vector<doub
 double Mesh::find_min_delta_t(const std::vector<std::vector<double>>& velocities) {
     std::vector<double> min_t_values;
 
-    for (const auto& triangle : this->triangles) {
+    //for (const auto& triangle : this->triangles) {
+    for (int tri=0; tri<this->triangles.size(); tri++) {
         std::vector<std::vector<double>> t_values;
-        t_values.push_back(find_t(target_points[triangle[0]], target_points[triangle[1]], target_points[triangle[2]], velocities[triangle[0]], velocities[triangle[1]], velocities[triangle[2]]));
-        t_values.push_back(find_t(target_points[triangle[1]], target_points[triangle[0]], target_points[triangle[2]], velocities[triangle[1]], velocities[triangle[0]], velocities[triangle[2]]));
-        t_values.push_back(find_t(target_points[triangle[2]], target_points[triangle[0]], target_points[triangle[1]], velocities[triangle[2]], velocities[triangle[0]], velocities[triangle[1]]));
-        t_values.push_back(find_t(target_points[triangle[0]], target_points[triangle[2]], target_points[triangle[1]], velocities[triangle[0]], velocities[triangle[2]], velocities[triangle[1]]));
-        t_values.push_back(find_t(target_points[triangle[2]], target_points[triangle[1]], target_points[triangle[0]], velocities[triangle[2]], velocities[triangle[1]], velocities[triangle[0]]));
-        t_values.push_back(find_t(target_points[triangle[1]], target_points[triangle[2]], target_points[triangle[0]], velocities[triangle[1]], velocities[triangle[2]], velocities[triangle[0]]));
-
-        //std::cout << "d" << std::endl;
+        t_values.push_back(find_t(target_points[triangles[tri][0]], target_points[triangles[tri][1]], target_points[triangles[tri][2]], velocities[triangles[tri][0]], velocities[triangles[tri][1]], velocities[triangles[tri][2]]));
+        t_values.push_back(find_t(target_points[triangles[tri][1]], target_points[triangles[tri][0]], target_points[triangles[tri][2]], velocities[triangles[tri][1]], velocities[triangles[tri][0]], velocities[triangles[tri][2]]));
+        t_values.push_back(find_t(target_points[triangles[tri][2]], target_points[triangles[tri][0]], target_points[triangles[tri][1]], velocities[triangles[tri][2]], velocities[triangles[tri][0]], velocities[triangles[tri][1]]));
+        t_values.push_back(find_t(target_points[triangles[tri][0]], target_points[triangles[tri][2]], target_points[triangles[tri][1]], velocities[triangles[tri][0]], velocities[triangles[tri][2]], velocities[triangles[tri][1]]));
+        t_values.push_back(find_t(target_points[triangles[tri][2]], target_points[triangles[tri][1]], target_points[triangles[tri][0]], velocities[triangles[tri][2]], velocities[triangles[tri][1]], velocities[triangles[tri][0]]));
+        t_values.push_back(find_t(target_points[triangles[tri][1]], target_points[triangles[tri][2]], target_points[triangles[tri][0]], velocities[triangles[tri][1]], velocities[triangles[tri][2]], velocities[triangles[tri][0]]));
 
         // Ignore negative or zero values
         std::vector<double> valid_t_values;
@@ -433,6 +433,8 @@ double Mesh::find_min_delta_t(const std::vector<std::vector<double>>& velocities
         }
     }
 
+    //std::cout << "f" << std::endl;
+
     // Calculate the minimum of the minimum delta_t values
     return *std::min_element(min_t_values.begin(), min_t_values.end());
 }
@@ -440,6 +442,8 @@ double Mesh::find_min_delta_t(const std::vector<std::vector<double>>& velocities
 // Function to update points based on velocities and minimum delta_t
 double Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>& dfy, double step_size) {
     std::vector<std::vector<double>> velocities;
+
+    printf("populated velocities\r\n");
 
     // Populate velocities and delta_t
     for (int i = 0; i < target_points.size(); i++) {
@@ -474,14 +478,18 @@ double Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>
     //     velocities[i][1] -= regularization_term * velocities[i][1];
     // }
 
+    printf("finding min_delta_t\r\n");
+
     double min_t = find_min_delta_t(velocities);
-    std::cout << "min_t = " << min_t << std::endl;
+    //std::cout << "min_t = " << min_t << std::endl;
 
     // Move vertices along the gradient
     for (size_t i = 0; i < target_points.size(); ++i) {
         target_points[i][0] += velocities[i][0] * min_t * step_size;
         target_points[i][1] += velocities[i][1] * min_t * step_size;
     }
+
+    printf("stepped\r\n");
 
     return min_t;
 }
@@ -635,5 +643,5 @@ void Mesh::save_solid_obj(double thickness, const std::string& filename) {
         file << "f " << top_idx + 1 << " " << next_top_idx + 1 << " " << next_bottom_idx + 1 << "\n";
     }
 
-    std::cout << "Exported model \"" << filename << "\"" << std::endl;
+    //std::cout << "Exported model \"" << filename << "\"" << std::endl;
 }
