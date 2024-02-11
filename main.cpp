@@ -4,19 +4,46 @@
 #include <fstream>
 #include <string>
 
-#define OPENCV_DISABLE_THREAD_SUPPORT ON
-
-#include <opencv2/core.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+#define cimg_use_png
+//#define cimg_use_jpeg
+#include "Cimg.h"
 
 #include "src/solver.h"
 #include "src/mesh.h"
 #include "src/polygon_utils.h"
 #include "src/utils.h"
 
-void image_to_grid(cv::Mat image, std::vector<std::vector<double>>& image_grid) {
+
+void image_to_grid(const cimg_library::CImg<unsigned char>& image, std::vector<std::vector<double>>& image_grid) {
+    for (int i = 0; i < image.height(); ++i) {
+        std::vector<double> row;
+        for (int j = 0; j < image.width(); ++j) {
+            double r = image(j, i, 0) / 255.0; // Normalize R component
+            double g = image(j, i, 1) / 255.0; // Normalize G component
+            double b = image(j, i, 2) / 255.0; // Normalize B component
+            double gray = (0.299 * r) + (0.587 * g) + (0.114 * b); // Calculate grayscale value using luminosity method
+            row.push_back(gray);
+        }
+        image_grid.push_back(row);
+    }
+}
+
+void save_grid_as_image(const std::vector<std::vector<double>>& img, int resolution_x, int resolution_y, const std::string& filename) {
+    // Create an empty CImg object with the specified resolution
+    cimg_library::CImg<unsigned char> image(resolution_x, resolution_y);
+
+    // Copy the grid data to the image
+    for (int i = 0; i < resolution_y; ++i) {
+        for (int j = 0; j < resolution_x; ++j) {
+            image(j, i) = static_cast<unsigned char>(img[i][j] * 255); // Scale to [0, 255] and cast to unsigned char
+        }
+    }
+
+    // Save the image as a PNG
+    image.save(filename.c_str());
+}
+
+/*void image_to_grid(cv::Mat image, std::vector<std::vector<double>>& image_grid) {
     for (int i = 0; i < image.rows; ++i) {
         std::vector<double> row;
         for (int j = 0; j < image.cols; ++j) {
@@ -63,12 +90,14 @@ void save_grid_as_image(std::vector<std::vector<double>>& img, int resolution_x,
 
     // Save the image as a PNG
     cv::imwrite(filename, image);
-}
+}*/
 
 int main(int argc, char const *argv[])
 {
-    int resolution_x = 750;
-    int resolution_y = 750;
+    printf("hello\r\n"); fflush(stdout);
+
+    int resolution_x = 3*100;
+    int resolution_y = 3*100;
 
     std::vector<std::vector<double>> phi;
     std::vector<double> errors;
@@ -82,33 +111,50 @@ int main(int argc, char const *argv[])
         phi.push_back(row);
     }
 
-    std::string image_path = cv::samples::findFile("../img/einstein.png");
-    cv::Mat img = cv::imread(image_path, cv::IMREAD_COLOR);
-    if(img.empty())
+    printf("loading image\r\n");
+
+    // Load image
+    cimg_library::CImg<unsigned char> image("C:/Users/dylan/Documents/caustic_engineering/img/einstein.png");
+
+    image = image.resize(resolution_x, resolution_y, -100, -100, 3); // Resize using linear interpolation
+
+    // Convert image to grid
+    std::vector<std::vector<double>> pixels;
+    image_to_grid(image, pixels);
+
+    printf("converted image to grid\r\n");
+
+    //std::string image_path = cv::samples::findFile("C:/Users/dylan/Documents/caustic_engineering/img/face.png");
+    //cv::Mat img = cv::imread(image_path, cv::IMREAD_COLOR);
+    /*if(img.empty())
     {
         std::cout << "Could not read the image: " << image_path << std::endl;
         return 1;
-    }
+    }*/
 
-    cv::Mat scaledImg;
-    cv::resize(img, scaledImg, cv::Size(resolution_x, resolution_y), cv::INTER_LINEAR);
+    /*cv::Mat scaledImg;
+    cv::resize(img, scaledImg, cv::Size(resolution_x, resolution_y), cv::INTER_LINEAR);*/
 
     //cv::bitwise_not(scaledImg, scaledImg);
 
     // convert image to grayscale values
-    std::vector<std::vector<double>> pixels;
-    image_to_grid(scaledImg, pixels);
+    //std::vector<std::vector<double>> pixels;
+
+    //printf("hello2\r\n"); fflush(stdout);
+    //image_to_grid(scaledImg, pixels);
 
     pixels = scale_matrix_proportional(pixels, 0, 1.0f);
 
-    Mesh mesh(1.0f, 1.0f, 256, 256);
+    Mesh mesh(1.0f, 1.0f, 100, 100);
 
-    std::cout << "built mesh" << std::endl;
+    printf("generated mesh\r\n");
+
+    //std::cout << "built mesh" << std::endl;
 
     std::vector<std::vector<std::vector<double>>> cells;
     mesh.build_target_dual_cells(cells);
 
-    std::cout << "generated dual cells" << std::endl;
+    printf("generated dual cells\r\n");
 
     std::vector<double> target_areas = get_target_areas(pixels, cells, resolution_x, resolution_y, 1.0f, 1.0f);
     
@@ -139,6 +185,7 @@ int main(int argc, char const *argv[])
 
         //show_grid(scale_matrix_proportional(phi, 0.0f, 1.0f), resolution_x, resolution_y);
 
+        printf("generated dual cells\r\n");
         std::vector<std::vector<std::vector<double>>> grad = calculate_gradient(phi);
 
         //save_grid_as_image(grad[0], resolution_x, resolution_y, "../grad_x.png");
@@ -155,15 +202,18 @@ int main(int argc, char const *argv[])
 
         double min_step = mesh.step_grid(gradient[0], gradient[1], 0.1);
 
+        printf("stepped grid\r\n");
+
         std::string svg_filename = "../parameterization.svg";
         mesh.export_paramererization_to_svg(svg_filename, 1.0f);
 
         mesh.build_bvh(1, 30);
         mesh.calculate_inverted_transport_map("../inverted.svg", 1.0f);
 
-        std::string png_filename = "../interpolated_" + std::to_string(itr) + "_" + std::to_string(min_step) + ".png";
+        /*std::string png_filename = "../param/interpolated_" + std::to_string(itr) + "_" + std::to_string(min_step) + ".png";
         //std::string png_filename = "../interpolated.png";
-        save_grid_as_image(raster, resolution_x, resolution_y, png_filename);
+        raster = scale_matrix_proportional(raster, 0, 1.0f);
+        save_grid_as_image(raster, resolution_x, resolution_y, png_filename);*/
 
 
         if (min_step < 1e-6) break;
