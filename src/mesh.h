@@ -13,6 +13,8 @@
 
 #include "bvh.h"
 
+typedef std::vector<double> point_t;
+
 struct HashPair {
     template <class T1, class T2>
     std::size_t operator () (const std::pair<T1, T2>& p) const {
@@ -32,18 +34,21 @@ class Mesh {
         int res_y;
 
         std::vector<std::vector<int>> triangles;
-        std::vector<std::vector<double>> source_points;
-        std::vector<std::vector<double>> target_points;
+        std::vector<point_t> source_points;
+        std::vector<point_t> target_points;
 
         std::unordered_map<int, std::vector<int>> vertex_to_triangles;
 
-        Bvh *bvh;
+        // stores the BVH tree for the target mesh
+        Bvh *target_bvh;
 
-        void generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<std::vector<double>> &points);
+        void generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<point_t> &points);
         void build_vertex_to_triangles();
         std::pair<std::vector<std::pair<int, int>>, std::vector<int>> find_adjacent_elements(int vertex_index);
 
         double find_min_delta_t(const std::vector<std::vector<double>>& velocities);
+
+        std::vector<std::vector<double>> circular_transform(std::vector<std::vector<double>> input_points);
 
     public:
         Mesh(double width, double height, int res_x, int res_y);
@@ -53,8 +58,8 @@ class Mesh {
         void export_paramererization_to_svg(std::string filename, double stroke_width);
 
         std::vector<std::vector<double>> get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points);
-        void build_target_dual_cells(std::vector<std::vector<std::vector<double>>> &cells);
-        void build_source_dual_cells(std::vector<std::vector<std::vector<double>>> &cells);
+        void build_target_dual_cells(std::vector<std::vector<point_t>> &cells);
+        void build_source_dual_cells(std::vector<std::vector<point_t>> &cells);
 
         std::vector<std::vector<double>> interpolate_raster(const std::vector<double>& errors, int res_x, int res_y);
 
@@ -69,6 +74,8 @@ class Mesh {
         void save_solid_obj(double thickness, const std::string& filename);
 
         void calculate_inverted_transport_map(std::string filename, double stroke_width);
+
+        void build_target_dual_cells_circ(std::vector<std::vector<point_t>> &cells);
 };
 
 #endif

@@ -2,64 +2,49 @@
 
 Mesh::Mesh(double width, double height, int res_x, int res_y)
 {
+    // set physical size of mesh
     this->width = width;
     this->height = height;
+
+    // set poisson domain resolution
     this->res_x = res_x;
     this->res_y = res_y;
 
-    this->source_points.clear();
-    this->target_points.clear();
-
+    // Build the parameterization mesh
     generate_structured_mesh(res_x, res_y, width, height, this->triangles, this->target_points);
     build_vertex_to_triangles();
 
-    // duplicate points
+    // Duplicate mesh points
     for (int i=0; i<this->target_points.size(); i++) {
         this->source_points.push_back(this->target_points[i]);
     }
 
-    bvh = new Bvh(triangles, target_points);
+    // Create instance of the bvh class used for interpolation
+    target_bvh = new Bvh(triangles, target_points);
 }
 
 Mesh::~Mesh()
 {
-    delete(bvh);
+    delete(target_bvh);
 }
 
+// Build the BVH tree for the target mesh
 void Mesh::build_bvh(int targetCellSize, int maxDepth) {
-    bvh->build(1, 50);
+    target_bvh->build(targetCellSize, maxDepth);
 }
 
-void Mesh::generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<std::vector<double>> &points) {
-    // Creating x and y vectors
-    std::vector<double> x(nx);
-    std::vector<double> y(ny);
-
-    for (int i = 0; i < nx; ++i)
-        x[i] = static_cast<double>(i) * width / static_cast<double>(nx - 1);
-
-    for (int i = 0; i < ny; ++i)
-        y[i] = static_cast<double>(i) * height / static_cast<double>(ny - 1);
-
-    // Creating xv and yv matrices using meshgrid
-    std::vector<std::vector<double>> xv(ny, std::vector<double>(nx, 0.0));
-    std::vector<std::vector<double>> yv(ny, std::vector<double>(nx, 0.0));
-
+// generates a structured triangulation used for the parameterization
+void Mesh::generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<point_t> &points) {
+    // Generate points
     for (int i = 0; i < ny; ++i) {
         for (int j = 0; j < nx; ++j) {
-            xv[i][j] = x[j];
-            yv[i][j] = y[i];
+            double x = static_cast<double>(j) * width / (nx - 1);
+            double y = static_cast<double>(i) * height / (ny - 1);
+            points.push_back({x, y, 0.0});
         }
     }
 
-    // Creating points
-    for (int i = 0; i < ny; ++i) {
-        for (int j = 0; j < nx; ++j) {
-            points.push_back({xv[i][j], yv[i][j], 0.0});
-        }
-    }
-
-    // Create triangles
+    // Generate triangles
     for (int i = 0; i < ny - 1; ++i) {
         for (int j = 0; j < nx - 1; ++j) {
             int idx = i * nx + j;
@@ -69,6 +54,28 @@ void Mesh::generate_structured_mesh(int nx, int ny, double width, double height,
     }
 }
 
+// transforms a square grid into a circular grid -> to support circular lenses in the future
+std::vector<point_t> Mesh::circular_transform(std::vector<point_t> input_points) {
+    std::vector<point_t> transformed_points;
+    for (int i = 0; i < input_points.size(); i++) {
+        point_t transformed_point(3);
+
+        double x = input_points[i][0] - this->width/2.0f;
+        double y = input_points[i][1] - this->height/2.0f;
+
+        transformed_point[0] = x * sqrt(1.0 - 2.0*(y * y));
+        transformed_point[1] = y * sqrt(1.0 - 2.0*(x * x));
+
+        transformed_point[0] += this->width/2.0f;
+        transformed_point[1] += this->height/2.0f;
+        transformed_point[2] = input_points[i][2];
+
+        transformed_points.push_back(transformed_point);
+    }
+    return transformed_points;
+}
+
+// export triangular mesh (target) as svg
 void Mesh::export_to_svg(std::string filename, double stroke_width) {
     std::ofstream svg_file(filename, std::ios::out);
     if (!svg_file.is_open()) {
@@ -78,10 +85,12 @@ void Mesh::export_to_svg(std::string filename, double stroke_width) {
     // Write SVG header
     svg_file << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n";
     svg_file << "<svg width=\"1000\" height=\"" << 1000.0f * ((double)height / (double)width) << "\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n";
+    
+    svg_file << "<rect width=\"100%\" height=\"100%\" fill=\"white\"/>\n";
 
     // Draw polygons
     for (const auto& polygon : this->triangles) {
-        std::vector<std::vector<double>> poly_points;
+        std::vector<point_t> poly_points;
         for (const auto& point_idx : polygon) {
             poly_points.push_back(this->target_points[point_idx]);
         }
@@ -104,8 +113,8 @@ void Mesh::export_to_svg(std::string filename, double stroke_width) {
     svg_file.close();
 }
 
+// build mapping from vertices to connected triangles -> used for creating dual cells
 void Mesh::build_vertex_to_triangles() {
-
     for (int i = 0; i < this->triangles.size(); ++i) {
         const std::vector<int>& triangle = this->triangles[i];
         
@@ -119,6 +128,7 @@ void Mesh::build_vertex_to_triangles() {
     }
 }
 
+// find triangles and edges connected to a specific vertex by index
 std::pair<std::vector<std::pair<int, int>>, std::vector<int>> Mesh::find_adjacent_elements(int vertex_index) {
     std::unordered_set<std::pair<int, int>, HashPair> adjacent_edges;
     std::unordered_set<int> adjacent_triangles;
@@ -147,7 +157,13 @@ std::pair<std::vector<std::pair<int, int>>, std::vector<int>> Mesh::find_adjacen
     return std::make_pair(adjacent_edges_vector, adjacent_triangles_vector);
 }
 
-std::vector<std::vector<double>> Mesh::get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points) {
+// Function to calculate angle between two points with respect to a reference point
+double calculateAngle(const point_t& a, const point_t& reference) {
+    return std::atan2(a[1] - reference[1], a[0] - reference[0]);
+}
+
+// Build a dual cell from a given vertex
+std::vector<point_t> Mesh::get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points) {
     std::vector<std::pair<int, int>> adjacent_edges;
     std::vector<int> adjacent_triangles;
 
@@ -157,16 +173,17 @@ std::vector<std::vector<double>> Mesh::get_barycentric_dual_cell(int point, std:
     adjacent_edges = adjacent_elements.first;
     adjacent_triangles = adjacent_elements.second;
 
-    // Calculate dual points
-    std::vector<std::vector<double>> dual_points;
+    // Store dual cell vertices
+    std::vector<point_t> dual_points;
 
-    for (int i=0; i<adjacent_triangles.size(); i++) {
+    // Append triangle centroids to the dual cell vertices with angles
+    for (int i = 0; i < adjacent_triangles.size(); i++) {
         int triangle_index = adjacent_triangles[i];
 
         const std::vector<int>& triangle = this->triangles[triangle_index];
-        const std::vector<double>& p1 = points[triangle[0]];
-        const std::vector<double>& p2 = points[triangle[1]];
-        const std::vector<double>& p3 = points[triangle[2]];
+        const point_t& p1 = points[triangle[0]];
+        const point_t& p2 = points[triangle[1]];
+        const point_t& p3 = points[triangle[2]];
 
         // Centroid of the triangle
         double centroid_x = (p1[0] + p2[0] + p3[0]) / 3.0;
@@ -175,11 +192,12 @@ std::vector<std::vector<double>> Mesh::get_barycentric_dual_cell(int point, std:
         dual_points.push_back({centroid_x, centroid_y});
     }
 
-    for (int i=0; i<adjacent_edges.size(); i++) {
+    // Append edge centroids to the dual cell vertices with angles
+    for (int i = 0; i < adjacent_edges.size(); i++) {
         std::pair<int, int> edge = adjacent_edges[i];
 
-        const std::vector<double>& p1 = points[edge.first];
-        const std::vector<double>& p2 = points[edge.second];
+        const point_t& p1 = points[edge.first];
+        const point_t& p2 = points[edge.second];
 
         // Centroid of the edge
         double centroid_x = (p1[0] + p2[0]) / 2.0;
@@ -188,116 +206,126 @@ std::vector<std::vector<double>> Mesh::get_barycentric_dual_cell(int point, std:
         dual_points.push_back({centroid_x, centroid_y});
     }
 
+    double epsilon = std::numeric_limits<double>::epsilon();
+
+    std::vector<point_t> dual_points_copy;
+    dual_points_copy.resize(dual_points.size());
+
+    // add the vertex itself to the dual vertices if there are less than 4 adjacent triangles
     if (adjacent_triangles.size() <= 3) {
-        dual_points.push_back(points[point]);
+        for (int i=0; i<dual_points_copy.size(); i++) {
+            dual_points_copy[i] = dual_points[i];
+        }
+
+        // add point that is slightly moved away from the other vertices instead of the point itself
+        //point_t current_centroid = calculate_polygon_centroid(dual_points_copy);
+        //point_t new_point = {current_centroid[0]*epsilon, current_centroid[1]*epsilon};
+        //dual_points_copy.push_back(new_point);
+        dual_points_copy.push_back(points[point]);
+
+        std::sort(dual_points.begin(), dual_points.end(), [&](const point_t& a, const point_t& b) {
+            double angle_a = std::atan2(a[1] - points[point][1], a[0] - points[point][0]);
+            double angle_b = std::atan2(b[1] - points[point][1], b[0] - points[point][0]);
+            return angle_a < angle_b;
+        });
+
+        // Create a vector of indices
+        /*std::vector<int> indices(dual_points_copy.size());
+        for (int i = 0; i < dual_points_copy.size(); ++i) {
+            indices[i] = i;
+        }
+
+        // Sort the indices based on the angles
+        std::sort(indices.begin(), indices.end(), [&](int a, int b) {
+            double angle_a = std::atan2(dual_points_copy[a][1] - points[point][1], dual_points_copy[a][0] - points[point][0]);
+            double angle_b = std::atan2(dual_points_copy[b][1] - points[point][1], dual_points_copy[b][0] - points[point][0]);
+            return angle_a < angle_b;
+        });
+
+        for (int i = 0; i < dual_points_copy.size(); ++i) {
+            //if (i == dual_points_copy.size() - 1) {
+            //    dual_points[i] = points[point];
+            //} else {
+                dual_points[i] = dual_points_copy[indices[i]];
+            //}
+        }*/
+    } else {
+        // Sort triangles and edges based on angles with respect to the centroid
+        std::sort(dual_points.begin(), dual_points.end(), [&](const point_t& a, const point_t& b) {
+            double angle_a = std::atan2(a[1] - points[point][1], a[0] - points[point][0]);
+            double angle_b = std::atan2(b[1] - points[point][1], b[0] - points[point][0]);
+            return angle_a < angle_b;
+        });
     }
 
-    // Order points based on angles with respect to the centroid
-    double centroid_x = 0.0;
-    double centroid_y = 0.0;
-    for (const auto& point : dual_points) {
-        centroid_x += point[0];
-        centroid_y += point[1];
-    }
-    centroid_x /= dual_points.size();
-    centroid_y /= dual_points.size();
-
-    std::vector<double> angles;
-    for (const auto& point : dual_points) {
-        double angle = std::atan2(point[1] - centroid_y, point[0] - centroid_x);
-        angles.push_back(angle);
-    }
-
-    std::vector<size_t> order(dual_points.size());
-    std::iota(order.begin(), order.end(), 0);
-
-    // Sort points based on angles
-    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
-        return angles[a] < angles[b];
-    });
-
-    std::vector<std::vector<double>> polygon;
-    for (size_t index : order) {
-        polygon.push_back(dual_points[index]);
-    }
-
-    return polygon;
+    return dual_points;
 }
 
-void Mesh::build_target_dual_cells(std::vector<std::vector<std::vector<double>>> &cells) {
-    for (int i=0; i<this->target_points.size(); i++) {
-        std::vector<std::vector<double>> cell = get_barycentric_dual_cell(i, this->target_points);
-        cells.push_back(cell);
-    }
-    printf("test\r\n");
-}
-
-void Mesh::build_source_dual_cells(std::vector<std::vector<std::vector<double>>> &cells) {
+// build barycentric dual mesh for the source mesh
+void Mesh::build_source_dual_cells(std::vector<std::vector<point_t>> &cells) {
     for (int i=0; i<this->source_points.size(); i++) {
-        std::vector<std::vector<double>> cell = get_barycentric_dual_cell(i, this->source_points);
+        std::vector<point_t> cell = get_barycentric_dual_cell(i, this->source_points);
         cells.push_back(cell);
     }
 }
 
-// Assuming points is a vector of pairs of doubles
+// build barycentric dual mesh for the target mesh
+void Mesh::build_target_dual_cells(std::vector<std::vector<point_t>> &cells) {
+    for (int i=0; i<this->target_points.size(); i++) {
+        std::vector<point_t> cell = get_barycentric_dual_cell(i, this->target_points);
+        cells.push_back(cell);
+    }
+}
+
+// interpolate target mesh into a rectangular grid
 std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<double>& errors, int res_x, int res_y) {
-    // Creating x and y vectors
+    // Generate x and y vectors
     std::vector<double> x(res_x);
     std::vector<double> y(res_y);
 
     for (int i = 0; i < res_x; ++i)
-        x[i] = static_cast<double>(i) * width / static_cast<double>(res_x - 1);
+        x[i] = static_cast<double>(i) * width / (res_x - 1);
 
     for (int i = 0; i < res_y; ++i)
-        y[i] = static_cast<double>(i) * height / static_cast<double>(res_y - 1);
+        y[i] = static_cast<double>(i) * height / (res_y - 1);
 
-    // Creating xv and yv matrices using meshgrid
-    std::vector<std::vector<double>> xv(res_y, std::vector<double>(res_x, 0.0));
-    std::vector<std::vector<double>> yv(res_y, std::vector<double>(res_x, 0.0));
-
-    for (int i = 0; i < res_y; ++i) {
-        for (int j = 0; j < res_x; ++j) {
-            xv[i][j] = x[j];
-            yv[i][j] = y[i];
-        }
-    }
-    
+    // Generate raster
     std::vector<std::vector<double>> raster;
     for (int i = 0; i < res_y; ++i) {
         std::vector<double> row;
         for (int j = 0; j < res_x; ++j) {
-            std::vector<double> point = {xv[i][j], yv[i][j]};
+            point_t point = {x[j], y[i]};
             Hit hit;
             bool intersection = false;
-            bvh->query(point, hit, intersection);
+            target_bvh->query(point, hit, intersection);
             if (intersection) {
                 std::vector<double> vertex_values;
-                vertex_values.push_back(errors[triangles[hit.face_id][0]]);
-                vertex_values.push_back(errors[triangles[hit.face_id][1]]);
-                vertex_values.push_back(errors[triangles[hit.face_id][2]]);
+                vertex_values.reserve(3);
+                for (int k = 0; k < 3; ++k)
+                    vertex_values.push_back(errors[triangles[hit.face_id][k]]);
                 double interpolation = 
                     vertex_values[0]*hit.barycentric_coords[0] + 
                     vertex_values[1]*hit.barycentric_coords[1] + 
                     vertex_values[2]*hit.barycentric_coords[2];
                 row.push_back(interpolation);
             } else {
-                row.push_back(1.0f);
+                row.push_back(1.0);
             }
         }
-        
         raster.push_back(row);
     }
 
     return raster;
 }
 
+// exports the inverted transport map as svg (mesh where its density distrbution is dependent on the image intensity)
 void Mesh::calculate_inverted_transport_map(std::string filename, double stroke_width) {
     std::vector<std::vector<double>> raster;
     for (int i=0; i<this->source_points.size(); ++i) {
         std::vector<double> point = this->source_points[i];
         Hit hit;
         bool intersection = false;
-        bvh->query(point, hit, intersection);
+        target_bvh->query(point, hit, intersection);
         if (intersection) {
             std::vector<std::vector<double>> vertex_values;
             vertex_values.push_back(source_points[this->triangles[hit.face_id][0]]);
@@ -368,8 +396,9 @@ void Mesh::calculate_inverted_transport_map(std::string filename, double stroke_
     svg_file.close();
 }
 
-std::vector<double> find_t(const std::vector<double>& p1, const std::vector<double>& p2, const std::vector<double>& p3,
-                              const std::vector<double>& dp1, const std::vector<double>& dp2, const std::vector<double>& dp3) {
+// find the maximum delta_t given a triangle and the vertex velocities where the triangle will collapse
+std::vector<double> find_t(const point_t& p1, const point_t& p2, const point_t& p3,
+                              const point_t& dp1, const point_t& dp2, const point_t& dp3) {
     double x1 = p2[0] - p1[0], y1 = p2[1] - p1[1];
     double x2 = p3[0] - p1[0], y2 = p3[1] - p1[1];
     double u1 = dp2[0] - dp1[0], v1 = dp2[1] - dp1[1];
@@ -404,22 +433,33 @@ double Mesh::find_min_delta_t(const std::vector<std::vector<double>>& velocities
     //for (const auto& triangle : this->triangles) {
     for (int tri=0; tri<this->triangles.size(); tri++) {
         std::vector<std::vector<double>> t_values;
-        t_values.push_back(find_t(target_points[triangles[tri][0]], target_points[triangles[tri][1]], target_points[triangles[tri][2]], velocities[triangles[tri][0]], velocities[triangles[tri][1]], velocities[triangles[tri][2]]));
-        t_values.push_back(find_t(target_points[triangles[tri][1]], target_points[triangles[tri][0]], target_points[triangles[tri][2]], velocities[triangles[tri][1]], velocities[triangles[tri][0]], velocities[triangles[tri][2]]));
-        t_values.push_back(find_t(target_points[triangles[tri][2]], target_points[triangles[tri][0]], target_points[triangles[tri][1]], velocities[triangles[tri][2]], velocities[triangles[tri][0]], velocities[triangles[tri][1]]));
-        t_values.push_back(find_t(target_points[triangles[tri][0]], target_points[triangles[tri][2]], target_points[triangles[tri][1]], velocities[triangles[tri][0]], velocities[triangles[tri][2]], velocities[triangles[tri][1]]));
+        // try every combination
+        //t_values.push_back(find_t(target_points[triangles[tri][0]], target_points[triangles[tri][1]], target_points[triangles[tri][2]], velocities[triangles[tri][0]], velocities[triangles[tri][1]], velocities[triangles[tri][2]]));
+        //t_values.push_back(find_t(target_points[triangles[tri][1]], target_points[triangles[tri][0]], target_points[triangles[tri][2]], velocities[triangles[tri][1]], velocities[triangles[tri][0]], velocities[triangles[tri][2]]));
+        //t_values.push_back(find_t(target_points[triangles[tri][2]], target_points[triangles[tri][0]], target_points[triangles[tri][1]], velocities[triangles[tri][2]], velocities[triangles[tri][0]], velocities[triangles[tri][1]]));
+        //t_values.push_back(find_t(target_points[triangles[tri][0]], target_points[triangles[tri][2]], target_points[triangles[tri][1]], velocities[triangles[tri][0]], velocities[triangles[tri][2]], velocities[triangles[tri][1]]));
         t_values.push_back(find_t(target_points[triangles[tri][2]], target_points[triangles[tri][1]], target_points[triangles[tri][0]], velocities[triangles[tri][2]], velocities[triangles[tri][1]], velocities[triangles[tri][0]]));
-        t_values.push_back(find_t(target_points[triangles[tri][1]], target_points[triangles[tri][2]], target_points[triangles[tri][0]], velocities[triangles[tri][1]], velocities[triangles[tri][2]], velocities[triangles[tri][0]]));
+        //t_values.push_back(find_t(target_points[triangles[tri][1]], target_points[triangles[tri][2]], target_points[triangles[tri][0]], velocities[triangles[tri][1]], velocities[triangles[tri][2]], velocities[triangles[tri][0]]));
 
         // Ignore negative or zero values
         std::vector<double> valid_t_values;
         for (int i=0; i<t_values.size(); i++) {
+            //printf("delta_t[0] = %f, delta_t[1] = %f\r\n", t_values[i][0], t_values[i][1]);
             if (t_values[i][0] > 0) {
                 valid_t_values.push_back(t_values[i][0]);
             }
             if (t_values[i][1] > 0) {
                 valid_t_values.push_back(t_values[i][1]);
             }
+        }
+        //printf("\r\n");
+
+        std::vector<std::vector<double>> triangle;
+        triangle.push_back(target_points[triangles[tri][0]]);
+        triangle.push_back(target_points[triangles[tri][1]]);
+        triangle.push_back(target_points[triangles[tri][2]]);
+        if (calculate_polygon_area_vec(triangle) <= 0.0f) {
+            printf("negative area!\r\n");
         }
 
         //std::cout << valid_t_values.size() << std::endl;
@@ -593,8 +633,6 @@ void find_perimeter_vertices(int nx, int ny, std::vector<int> &perimeter_vertice
 
 void Mesh::save_solid_obj(double thickness, const std::string& filename) {
     int num_points = this->source_points.size();
-    std::vector<int> perimeter_verts;
-    find_perimeter_vertices(this->res_x, this->res_y, perimeter_verts);
 
     std::ofstream file(filename);
     if (!file.is_open()) {
@@ -602,23 +640,29 @@ void Mesh::save_solid_obj(double thickness, const std::string& filename) {
         return;
     }
 
-    double max_h = 0;
+    // Find maximum height
+    double min_h = 0;
     for (int i=0; i<num_points; i++) {
         double h = this->source_points[i][2];
 
-        if (max_h < h) {
-            max_h = h;
+        if (min_h > h) {
+            min_h = h;
         }
     }
 
+    file << "# Generated by the software algorithm written by Dylan Missuwe" << "\n";
+    file << "# The algorithm used to create the lens is based on the paper " 
+        << "\"Poisson-Based Continuous Surface Generation for Goal-Based Caustics\" " 
+        << "by Yue et al (2014)" << "\n";
+
     // Curved mesh verts on the bottom
     for (const auto& point : this->source_points) {
-        file << "v " << point[0] << " " << 1.0f - point[1] << " " << -point[2] - max_h << "\n";
+        file << "v " << point[0] << " " << this->width - point[1] << " " << -(point[2] - min_h) << "\n";
     }
 
     // Flat mesh verts on the bottom
     for (const auto& point : this->source_points) {
-        file << "v " << point[0] << " " << 1.0f - point[1] << " " << -thickness << "\n";
+        file << "v " << point[0] << " " << this->width - point[1] << " " << -thickness << "\n";
     }
 
     // Curved mesh triangles on the top
@@ -632,6 +676,9 @@ void Mesh::save_solid_obj(double thickness, const std::string& filename) {
     }
 
     // Generate triangles connecting top and bottom mesh
+    std::vector<int> perimeter_verts;
+    find_perimeter_vertices(this->res_x, this->res_y, perimeter_verts);
+
     for (size_t i = 0; i < perimeter_verts.size(); ++i) {
         int top_idx = perimeter_verts[i];
         int bottom_idx = perimeter_verts[i] + num_points;
