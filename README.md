@@ -1,1 +1,128 @@
-## Caustic Design
+# Poisson-Based Continuous Surface Generation for Goal-Based Caustics
+
+## Overview
+
+This project implements the method described in the paper "Poisson-Based Continuous Surface Generation for Goal-Based Caustics".
+
+## Features
+
+- Implementation of the Poisson-based continuous surface generation algorithm.
+- exports a solidified .obj
+- the only non-standard dependancy is libpng
+- can export the the inverse transport map
+
+## Installation
+
+### Prerequisites
+
+- C++ compiler with C++11 support for your platform
+- libpng (requires zlib)
+
+### Building from Source: Unix
+
+1. Clone the repository:
+
+    ```bash
+    git clone git@github.com:dylanmsu/caustic_engineering.git
+    ```
+
+2. Navigate to the project directory:
+
+    ```bash
+    cd caustic_engineering
+    ```
+
+3. Compile the source code:
+
+    ```bash
+    # create build directory
+    mkdir build && cd build
+
+    # generate build files
+    cmake ..
+
+    # build
+    make
+    ```
+
+4. Run the code:
+    ```bash
+    ./CausticEngineering
+    ```
+
+### Building from Source: Windows
+1. Clone the repository:
+
+    ```bash
+    git clone git@github.com:dylanmsu/caustic_engineering.git
+    ```
+
+2. Navigate to the project directory:
+
+    ```bash
+    cd caustic_engineering
+    ```
+
+3. Compile the source code:
+
+    ```bash
+    # create build directory
+    mkdir build && cd build
+
+    # generate build files (assumes C:/mingw64 to be the mingw64 path)
+    & "C:/mingw64/bin/cmake.exe" -G "MinGW Makefiles" .. 
+
+    # build
+    & "C:/mingw64/bin/mingw32-make.exe"
+    ```
+
+4. Run the code:
+    ```bash
+    ./CausticEngineering.exe
+    ```
+
+## Usage
+
+### Running the Program
+
+1. [TODO: Provide parameters]
+
+2. Execute the program:
+
+    ```bash
+    ./CausticEngineering
+    ```
+
+### Sample Output
+
+transport from an image to an almost uniform distribution:
+
+![Alt text](./doc/lena_parameterization.gif)
+
+transport map parameterization mesh:
+
+![Alt text](./doc/parameterization.svg)
+
+inverted transport map:
+
+![Alt text](./doc/inverted.svg)
+
+## Contributing
+
+Contributions are welcome! If you'd like to contribute to this project, please follow these steps:
+
+1. Fork the repository
+2. Create a new branch (`git checkout -b feature`)
+3. Make your changes
+4. Commit your changes (`git commit -am 'Add new feature'`)
+5. Push to the branch (`git push origin feature`)
+6. Create a new Pull Request
+
+## License
+
+TODO
+
+## Acknowledgements
+
+TODO
+

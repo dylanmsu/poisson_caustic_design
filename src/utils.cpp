@@ -105,7 +105,7 @@ void export_cells_as_svg(std::vector<std::vector<std::vector<double>>> cells, st
                 path_str += "L";
         }
         path_str += "Z";
-        svg_file << "<path d=\"" << path_str << "\" fill=\"" << "rgb(" << intensities[i]*255 << ", " << intensities[i]*255 << ", " << intensities[i]*255 << ")\" stroke=\"red\" stroke-width=\"" << 1.0 << "\"/>\n";
+        svg_file << "<path d=\"" << path_str << "\" fill=\"" << "rgb(" << intensities[i]*255 << ", " << intensities[i]*255 << ", " << intensities[i]*255 << ")\" stroke=\"none\" stroke-width=\"" << 1.0 << "\"/>\n";
     }
 
     // Write SVG footer

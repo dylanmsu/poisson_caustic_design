@@ -1,8 +1,15 @@
 build
 .vscode
+.vs
 
 *.svg
 *.png
+*.jpg
+*.jpeg
+
+param
+
+!doc/*
 
 # Prerequisites
 *.d

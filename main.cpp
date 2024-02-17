@@ -13,6 +13,8 @@
 #include "src/polygon_utils.h"
 #include "src/utils.h"
 
+#include <thread>
+
 
 void image_to_grid(const cimg_library::CImg<unsigned char>& image, std::vector<std::vector<double>>& image_grid) {
     for (int i = 0; i < image.height(); ++i) {
@@ -43,64 +45,28 @@ void save_grid_as_image(const std::vector<std::vector<double>>& img, int resolut
     image.save(filename.c_str());
 }
 
-/*void image_to_grid(cv::Mat image, std::vector<std::vector<double>>& image_grid) {
-    for (int i = 0; i < image.rows; ++i) {
-        std::vector<double> row;
-        for (int j = 0; j < image.cols; ++j) {
-            cv::Vec3b intensity = image.at<cv::Vec3b>(i, j); // Retrieve BGR values of the pixel
-            double b = intensity[0] / 255.0; // Normalize B component
-            double g = intensity[1] / 255.0; // Normalize G component
-            double r = intensity[2] / 255.0; // Normalize R component
-            double gray = (0.299 * r) + (0.587 * g) + (0.114 * b); // Calculate grayscale value using luminosity method
-            row.push_back(gray);
-        }
-        image_grid.push_back(row);
-    }
-}
-
-void show_grid(std::vector<std::vector<double>> image_grid, int width, int height) {
-    cv::Mat grayImg(height, width, CV_8U);
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            grayImg.at<uchar>(y, x) = static_cast<uchar>(image_grid[y][x] * 255);
-        }
-    }
-
-    cv::Mat grayImg8bit;
-    cv::convertScaleAbs(grayImg, grayImg8bit);
-    cv::imshow("Grayscale Image", grayImg8bit);
-    int k = cv::waitKey(0);
-}
-
-void save_grid_as_image(std::vector<std::vector<double>>& img, int resolution_x, int resolution_y, std::string filename) {
-    // Convert the 'raster' data to a suitable format for OpenCV
-    cv::Mat image(resolution_y, resolution_x, CV_64FC1);
-
-    for (int i = 0; i < resolution_y; ++i) {
-        for (int j = 0; j < resolution_x; ++j) {
-            image.at<double>(i, j) = img[i][j];
-        }
-    }
-
-    // Normalize the values to the range [0, 255]
-    cv::normalize(image, image, 0, 255, cv::NORM_MINMAX);
-
-    // Convert to 8-bit unsigned integer format
-    image.convertTo(image, CV_8UC1);
-
-    // Save the image as a PNG
-    cv::imwrite(filename, image);
-}*/
-
 int main(int argc, char const *argv[])
 {
     printf("hello\r\n"); fflush(stdout);
 
-    int resolution_x = 3*100;
-    int resolution_y = 3*100;
+    int mesh_res_x = 750;
+    int mesh_res_y = 750;
+
+    int resolution_x = 3*mesh_res_x;
+    int resolution_y = 3*mesh_res_y;
+
+    double width = 0.5;
+    double height = 0.5;
+
+    double focal_l = 1.5f;
+
+    double thickness = 0.1;
 
     std::vector<std::vector<double>> phi;
     std::vector<double> errors;
+
+    const int num_threads = std::thread::hardware_concurrency();
+    printf("num threads = %i\r\n", num_threads);
 
     phi.clear();
     for (int i = 0; i < resolution_x; ++i) {
@@ -114,7 +80,7 @@ int main(int argc, char const *argv[])
     printf("loading image\r\n");
 
     // Load image
-    cimg_library::CImg<unsigned char> image("C:/Users/dylan/Documents/caustic_engineering/img/einstein.png");
+    cimg_library::CImg<unsigned char> image("../img/bulb.png");
 
     image = image.resize(resolution_x, resolution_y, -100, -100, 3); // Resize using linear interpolation
 
@@ -145,28 +111,33 @@ int main(int argc, char const *argv[])
 
     pixels = scale_matrix_proportional(pixels, 0, 1.0f);
 
-    Mesh mesh(1.0f, 1.0f, 100, 100);
+    Mesh mesh(width, height, mesh_res_x, mesh_res_y);
 
     printf("generated mesh\r\n");
 
     //std::cout << "built mesh" << std::endl;
 
-    std::vector<std::vector<std::vector<double>>> cells;
-    mesh.build_target_dual_cells(cells);
+    std::vector<std::vector<std::vector<double>>> target_cells;
+    std::vector<std::vector<std::vector<double>>> source_cells;
+    mesh.build_target_dual_cells(target_cells);
+    mesh.build_source_dual_cells(source_cells);
 
     printf("generated dual cells\r\n");
 
-    std::vector<double> target_areas = get_target_areas(pixels, cells, resolution_x, resolution_y, 1.0f, 1.0f);
+    std::vector<double> target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);
     
-    for (int itr=0; itr<200; itr++) {
-        cells.clear();
-        mesh.build_target_dual_cells(cells);
+    for (int itr=0; itr<500; itr++) {
+        
+        // build median dual mesh of the updated parameterization
+        target_cells.clear();
+        mesh.build_target_dual_cells(target_cells);
 
-        std::vector<double> source_areas = get_source_areas(cells);
+        // calculate 
+        std::vector<double> source_areas = get_source_areas(target_cells);
 
-        calculate_errors(source_areas, target_areas, cells, errors);
+        calculate_errors(source_areas, target_areas, target_cells, errors);
 
-        export_cells_as_svg(cells, scale_array_proportional(errors, 0.0f, 1.0f), "../cells.svg");
+        export_cells_as_svg(target_cells, scale_array_proportional(errors, 0.0f, 1.0f), "../cells.svg");
 
         mesh.build_bvh(1, 30);
 
@@ -174,35 +145,22 @@ int main(int argc, char const *argv[])
 
         printf("interpolated\r\n");
 
-        //mesh.export_to_svg("../output.svg", 1.0f);
-    
-        //show_grid(scale_matrix_proportional(raster, 0.0f, 1.0f), resolution_x, resolution_y);
-
         subtractAverage(raster);
         poisson_solver(raster, phi, resolution_x, resolution_y, 100000, 0.0000001);
-
-        //save_grid_as_image(phi, resolution_x, resolution_y, "../phi.png");
-
-        //show_grid(scale_matrix_proportional(phi, 0.0f, 1.0f), resolution_x, resolution_y);
 
         printf("generated dual cells\r\n");
         std::vector<std::vector<std::vector<double>>> grad = calculate_gradient(phi);
 
-        //save_grid_as_image(grad[0], resolution_x, resolution_y, "../grad_x.png");
-
-        //show_grid(scale_matrix_proportional(grad[0], 0.0f, 1.0f), resolution_x, resolution_y);
-        //show_grid(scale_matrix_proportional(grad[1], 0.0f, 1.0f), resolution_x, resolution_y);
-        
-        std::vector<std::vector<double>> gradient = integrate_cell_gradients(grad, cells, resolution_x, resolution_y, 1.0f, 1.0f);
-
-        //export_cells_as_svg(cells, scale_array_proportional(gradient[0], 0.0f, 1.0f), "../grad_x.svg");
-        //export_cells_as_svg(cells, scale_array_proportional(gradient[1], 0.0f, 1.0f), "../grad_y.svg");
+        std::vector<std::vector<double>> gradient = integrate_cell_gradients(grad, target_cells, resolution_x, resolution_y, width, height);
 
         printf("integrated\r\n");
 
-        double min_step = mesh.step_grid(gradient[0], gradient[1], 0.1);
-
+        double min_step = mesh.step_grid(gradient[0], gradient[1], 0.5);
         printf("stepped grid\r\n");
+
+        // iteration done, exporting visualizations:
+
+        mesh.export_to_svg("../mesh.svg", 0.5);
 
         std::string svg_filename = "../parameterization.svg";
         mesh.export_paramererization_to_svg(svg_filename, 1.0f);
@@ -210,17 +168,19 @@ int main(int argc, char const *argv[])
         mesh.build_bvh(1, 30);
         mesh.calculate_inverted_transport_map("../inverted.svg", 1.0f);
 
-        /*std::string png_filename = "../param/interpolated_" + std::to_string(itr) + "_" + std::to_string(min_step) + ".png";
-        //std::string png_filename = "../interpolated.png";
+        //std::string png_filename = "../param/interpolated_" + std::to_string(itr) + "_" + std::to_string(min_step) + ".png";
+        std::string png_filename = "../interpolated.png";
         raster = scale_matrix_proportional(raster, 0, 1.0f);
-        save_grid_as_image(raster, resolution_x, resolution_y, png_filename);*/
+        save_grid_as_image(raster, resolution_x, resolution_y, png_filename);//*/
 
+        printf("min_step = %f\r\n", min_step*(resolution_x/width));
 
-        if (min_step < 1e-6) break;
+        // convergence treshold for the parameterization
+        if (min_step*(resolution_x/width) < 0.005) break;
     }
 
     for (int itr=0; itr<3; itr++) {
-        std::vector<std::vector<double>> normals = mesh.calculate_refractive_normals(resolution_x / 1.0f * 2.0f, 1.49);
+        std::vector<std::vector<double>> normals = mesh.calculate_refractive_normals(resolution_x / width * focal_l, 1.49);
 
         mesh.build_bvh(1, 30);
         std::vector<std::vector<double>> norm_x = mesh.interpolate_raster(normals[0], resolution_x, resolution_y);
@@ -243,12 +203,12 @@ int main(int argc, char const *argv[])
         std::vector<std::vector<std::vector<double>>> source_cells;
         mesh.build_source_dual_cells(source_cells);
 
-        std::vector<double> interpolated_h = integrate_grid_into_cells(h, source_cells, resolution_x, resolution_y, 1.0f, 1.0f);
+        std::vector<double> interpolated_h = integrate_grid_into_cells(h, source_cells, resolution_x, resolution_y, width, height);
 
         mesh.set_source_heights(interpolated_h);
     }
 
-    mesh.save_solid_obj(0.2f, "../output.obj");
+    mesh.save_solid_obj(thickness, "../output.obj");
 
     return 0;
 }
