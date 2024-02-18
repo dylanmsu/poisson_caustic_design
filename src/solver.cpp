@@ -101,8 +101,11 @@ double patial_relax(std::vector<std::vector<double>> &output, std::vector<std::v
 void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::vector<double>> &output, int width, int height, int max_iterations, double convergence_threshold) {
     double omega = 2.0 / (1.0 + 3.14159265 / width);
 
-    int num_segments_x = 4;
-    int num_segments_y = 4;
+    int num_threads = std::thread::hardware_concurrency();
+
+    // process grid into x*y subsets
+    int num_segments_x = floor(sqrt(num_threads));
+    int num_segments_y = num_segments_x;
 
     std::vector<std::thread> threads(num_segments_x * num_segments_y);
     
@@ -116,8 +119,6 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
     for (int i = 0; i < max_iterations; i++) {
         double max_update = 0.0;
 
-        //max_update = patial_relax(output, input, width, height, omega, 0, 0, width, height);
-
         // Function to process a portion of the grid
         auto process_grid_part = [&](int start_x, int start_y, int end_x, int end_y) {
             double local_max_update = 0.0;
@@ -127,20 +128,16 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
             }
         };
 
-        for (int y = 0; y < num_segments_x; y++) {
+        // Create tasks to process the grid in chunks
+        for (int y = 0; y < num_segments_y; y++) {
             for (int x = 0; x < num_segments_x; x++) {
-                threads[x + num_segments_x * y] = std::thread(process_grid_part, 
-                    x * (width/num_segments_x), 
-                    y * (height/num_segments_y), 
-                    (x + 1) * (width/num_segments_x), 
+                threads[num_segments_y * x + y] = std::thread(process_grid_part, 
+                    x * (width/num_segments_x),
+                    y * (height/num_segments_y),
+                    (x + 1) * (width/num_segments_x),
                     (y + 1) * (height/num_segments_y));
             }
         }
-
-        //threads[0] = std::thread(process_grid_part, 0,       0,          width/2,    height/2);
-        //threads[1] = std::thread(process_grid_part, width/2, 0,          width,      height/2);
-        //threads[2] = std::thread(process_grid_part, 0,       height/2,   width/2,    height);
-        //threads[3] = std::thread(process_grid_part, width/2, height/2,   width,      height);
 
         // Join threads
         for (int i = 0; i < num_segments_x * num_segments_y; ++i) {
