@@ -13,9 +13,6 @@
 #include "src/polygon_utils.h"
 #include "src/utils.h"
 
-#include <thread>
-
-
 void image_to_grid(const cimg_library::CImg<unsigned char>& image, std::vector<std::vector<double>>& image_grid) {
     for (int i = 0; i < image.height(); ++i) {
         std::vector<double> row;
@@ -49,8 +46,8 @@ int main(int argc, char const *argv[])
 {
     printf("hello\r\n"); fflush(stdout);
 
-    int mesh_res_x = 750;
-    int mesh_res_y = 750;
+    int mesh_res_x = 200;
+    int mesh_res_y = 200;
 
     int resolution_x = 3*mesh_res_x;
     int resolution_y = 3*mesh_res_y;
@@ -64,9 +61,6 @@ int main(int argc, char const *argv[])
 
     std::vector<std::vector<double>> phi;
     std::vector<double> errors;
-
-    const int num_threads = std::thread::hardware_concurrency();
-    printf("num threads = %i\r\n", num_threads);
 
     phi.clear();
     for (int i = 0; i < resolution_x; ++i) {
@@ -155,7 +149,7 @@ int main(int argc, char const *argv[])
 
         printf("integrated\r\n");
 
-        double min_step = mesh.step_grid(gradient[0], gradient[1], 0.5);
+        double min_step = mesh.step_grid(gradient[0], gradient[1], 0.05);
         printf("stepped grid\r\n");
 
         // iteration done, exporting visualizations:
