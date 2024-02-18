@@ -6,12 +6,12 @@
 #include "solver.h"
 
 // perform a relaxation step
-void relax(std::vector<std::vector<double>> &output, std::vector<std::vector<double>> &input, int width, int height, double omega, double &max_update) {
+double patial_relax(std::vector<std::vector<double>> &output, std::vector<std::vector<double>> &input, int width, int height, double omega, int start_x, int start_y, int end_x, int end_y) {
     int x, y;
-    max_update = 0.0;
+    double max_update = 0.0;
 
-    for (y = 0; y < height; y++) {
-        for (x = 0; x < width; x++) {
+    for (y = start_y; y < end_y; y++) {
+        for (x = start_x; x < end_x; x++) {
             double val = output[y][x];
             double delta;
 
@@ -94,11 +94,17 @@ void relax(std::vector<std::vector<double>> &output, std::vector<std::vector<dou
             output[y][x] += delta;
         }
     }
+
+    return max_update;
 }
 
 void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::vector<double>> &output, int width, int height, int max_iterations, double convergence_threshold) {
-    double max_update = 0.0;
     double omega = 2.0 / (1.0 + 3.14159265 / width);
+
+    int num_segments_x = 4;
+    int num_segments_y = 4;
+
+    std::vector<std::thread> threads(num_segments_x * num_segments_y);
     
     // set the initial guess for the solution to all zero's
     /*for (int i=0; i<width; i++) {
@@ -108,7 +114,38 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
     }*/
 
     for (int i = 0; i < max_iterations; i++) {
-        relax(output, input, width, height, omega, max_update);
+        double max_update = 0.0;
+
+        //max_update = patial_relax(output, input, width, height, omega, 0, 0, width, height);
+
+        // Function to process a portion of the grid
+        auto process_grid_part = [&](int start_x, int start_y, int end_x, int end_y) {
+            double local_max_update = 0.0;
+            local_max_update = patial_relax(output, input, width, height, omega, start_x, start_y, end_x, end_y);
+            if (max_update < local_max_update) {
+                max_update = local_max_update;
+            }
+        };
+
+        for (int y = 0; y < num_segments_x; y++) {
+            for (int x = 0; x < num_segments_x; x++) {
+                threads[x + num_segments_x * y] = std::thread(process_grid_part, 
+                    x * (width/num_segments_x), 
+                    y * (height/num_segments_y), 
+                    (x + 1) * (width/num_segments_x), 
+                    (y + 1) * (height/num_segments_y));
+            }
+        }
+
+        //threads[0] = std::thread(process_grid_part, 0,       0,          width/2,    height/2);
+        //threads[1] = std::thread(process_grid_part, width/2, 0,          width,      height/2);
+        //threads[2] = std::thread(process_grid_part, 0,       height/2,   width/2,    height);
+        //threads[3] = std::thread(process_grid_part, width/2, height/2,   width,      height);
+
+        // Join threads
+        for (int i = 0; i < num_segments_x * num_segments_y; ++i) {
+            threads[i].join();
+        }//*/
 
         if (i % 100 == 0) {
             printf("\33[2K\r");
