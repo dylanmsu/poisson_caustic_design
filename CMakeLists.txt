@@ -6,7 +6,7 @@ project(YourProjectName)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -g)
+set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -Dcimg_display=0)
 
 # Add your source files here
 set(SOURCE_FILES 
@@ -19,6 +19,8 @@ set(SOURCE_FILES
 )
 
 find_package(PNG REQUIRED)
+
+find_package(X11 REQUIRED)
 
 # Create the executable
 add_executable(CausticEngineering ${SOURCE_FILES})
