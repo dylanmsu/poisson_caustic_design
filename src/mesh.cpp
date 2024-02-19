@@ -609,6 +609,12 @@ void Mesh::set_source_heights(std::vector<double> heights) {
     }
 }
 
+void Mesh::set_target_heights(std::vector<double> heights) {
+    for (int i=0; i<heights.size(); i++) {
+        this->target_points[i][2] = -heights[i];
+    }
+}
+
 void find_perimeter_vertices(int nx, int ny, std::vector<int> &perimeter_vertices) {
     // Top row
     for (int i = 0; i < nx; ++i) {
