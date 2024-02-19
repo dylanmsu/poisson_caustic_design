@@ -28,14 +28,10 @@ struct HashPair {
 
 class Mesh {
     private:
-        double width;
-        double height;
         int res_x;
         int res_y;
 
         std::vector<std::vector<int>> triangles;
-        std::vector<point_t> source_points;
-        std::vector<point_t> target_points;
 
         std::unordered_map<int, std::vector<int>> vertex_to_triangles;
 
@@ -54,6 +50,12 @@ class Mesh {
         Mesh(double width, double height, int res_x, int res_y);
         ~Mesh();
 
+        std::vector<point_t> source_points;
+        std::vector<point_t> target_points;
+
+        double width;
+        double height;
+
         void export_to_svg(std::string filename, double stroke_width);
         void export_paramererization_to_svg(std::string filename, double stroke_width);
 
@@ -70,6 +72,7 @@ class Mesh {
         std::vector<std::vector<double>> calculate_refractive_normals(double focal_len, double refractive_index);
 
         void set_source_heights(std::vector<double> heights);
+        void set_target_heights(std::vector<double> heights);
 
         void save_solid_obj(double thickness, const std::string& filename);
 
