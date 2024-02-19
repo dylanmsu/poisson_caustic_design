@@ -4,14 +4,18 @@
 #include <fstream>
 #include <string>
 
-#define cimg_use_png
-//#define cimg_use_jpeg
-#include "Cimg.h"
-
 #include "src/solver.h"
 #include "src/mesh.h"
 #include "src/polygon_utils.h"
 #include "src/utils.h"
+
+#include <thread>
+
+#define cimg_use_png
+//#define cimg_use_jpeg
+
+#include<X11/Xlib.h>
+#include "/home/dylan/caustic_engineering/CImg.h"
 
 void image_to_grid(const cimg_library::CImg<unsigned char>& image, std::vector<std::vector<double>>& image_grid) {
     for (int i = 0; i < image.height(); ++i) {
