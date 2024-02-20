@@ -14,8 +14,12 @@
 #define cimg_use_png
 //#define cimg_use_jpeg
 
-#include<X11/Xlib.h>
-#include "/home/dylan/caustic_engineering/CImg.h"
+#ifdef _WIN32 || _WIN64
+    #include "CImg.h"
+#else
+    #include<X11/Xlib.h>
+    #include "/home/dylan/caustic_engineering/CImg.h"
+#endif
 
 void image_to_grid(const cimg_library::CImg<unsigned char>& image, std::vector<std::vector<double>>& image_grid) {
     for (int i = 0; i < image.height(); ++i) {
@@ -75,10 +79,62 @@ double bilinearInterpolation(const std::vector<std::vector<double>>& image, doub
 
 int main(int argc, char const *argv[])
 {
-    printf("hello\r\n"); fflush(stdout);
+    /*if (argc < 3) {
+        show_usage(argv[0]);
+        return 1;
+    }*/
 
-    int mesh_res_x = 50;
-    int mesh_res_y = 50;
+    // Define a map to store the parsed arguments
+    std::unordered_map<std::string, std::string> args;
+
+    // Iterate through command line arguments
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        std::string key, value;
+
+        // Check if argument starts with '--'
+        if (arg.substr(0, 2) == "--") {
+            // Split argument by '=' to separate key and value
+            size_t pos = arg.find('=');
+            if (pos != std::string::npos) {
+                key = arg.substr(2, pos - 2);
+                value = arg.substr(pos + 1);
+            }
+            else {
+                key = arg.substr(2);
+                value = ""; // No value provided
+            }
+        }
+        // Check if argument starts with '-'
+        else if (arg[0] == '-') {
+            // The next argument is the value
+            if (i + 1 < argc && argv[i + 1][0] != '-') {
+                key = arg.substr(1);
+                value = argv[++i];
+            }
+            else {
+                key = arg.substr(1);
+                value = ""; // No value provided
+            }
+        }
+        // Invalid argument format
+        else {
+            //std::cerr << "Invalid argument format: " << arg << std::endl;
+            return 1;
+        }
+
+        // Store key-value pair in the map
+        args[key] = value;
+    }
+
+    // Print parsed arguments
+    /*for (const auto& pair : args) {
+        //std::cout << "Key: " << pair.first << ", Value: " << pair.second << std::endl;
+        printf("Key: %s, Value: %s\r\n", pair.first.c_str(), pair.second.c_str());
+    }*/
+
+    int mesh_res_x = atoi(args["res_w"].c_str());
+    int mesh_res_y = atoi(args["res_w"].c_str());
 
     int resolution_x = 4*mesh_res_x;
     int resolution_y = 4*mesh_res_y;
@@ -105,7 +161,7 @@ int main(int argc, char const *argv[])
     printf("loading image\r\n");
 
     // Load image
-    cimg_library::CImg<unsigned char> image("../img/siggraph.png");
+    cimg_library::CImg<unsigned char> image(args["intput_png"].c_str());
 
     image = image.resize(resolution_x, resolution_y, -100, -100, 3); // Resize using linear interpolation
 
@@ -202,12 +258,12 @@ int main(int argc, char const *argv[])
         mesh.calculate_inverted_transport_map("../inverted.svg", 1.0f);
 
         //std::string png_filename = "../param/interpolated_" + std::to_string(itr) + "_" + std::to_string(min_step) + ".png";
-        std::string png_filename = "../interpolated.png";
+        std::string png_filename = "../interpolated_param.png";
         raster = scale_matrix_proportional(raster, 0, 1.0f);
         save_grid_as_image(raster, resolution_x, resolution_y, png_filename);//*/
 
-        std::string phi_filename = "../phi.png";
-        save_grid_as_image(scale_matrix_proportional(phi , 0, 1.0f), resolution_x, resolution_y, phi_filename);//*/
+        //std::string phi_filename = "../phi.png";
+        //save_grid_as_image(scale_matrix_proportional(phi , 0, 1.0f), resolution_x, resolution_y, phi_filename);//*/
 
         printf("min_step = %f\r\n", min_step*(resolution_x/width));
 

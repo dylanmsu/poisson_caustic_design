@@ -85,12 +85,15 @@ This project implements the method described in the paper "Poisson-Based Continu
 
 ### Running the Program
 
-1. [TODO: Provide parameters]
-
+1. Parameters:
+    - ```bash
+        --intput_png=[image path] # input image path
+    - ```bash
+        --res_w=[grid resolution] # mesh resolution in the x-axis
 2. Execute the program:
 
     ```bash
-    ./CausticEngineering
+    ./CausticEngineering --intput_png=../img/lena.png --res_w=200
     ```
 
 ### Sample Output
