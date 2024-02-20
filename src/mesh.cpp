@@ -364,7 +364,7 @@ void Mesh::calculate_inverted_transport_map(std::string filename, double stroke_
     for (int j = 0; j < this->res_y; j++) {
         std::string path_str = "M";
         for (int i = 0; i < this->res_x; i++) {
-            int idx = j * this->res_x + i;
+            int idx = i + j * this->res_x;
 
             const auto& point = raster[idx];
             path_str += std::to_string((point[0] / (double)width) * 1000.0f) + "," +
@@ -376,10 +376,10 @@ void Mesh::calculate_inverted_transport_map(std::string filename, double stroke_
         svg_file << "<path d=\"" << path_str << "\" fill=\"none\" stroke=\"black\" stroke-width=\"" << stroke_width << "\"/>\n";
     }
 
-    for (int j = 0; j < this->res_y; j++) {
+    for (int j = 0; j < this->res_x; j++) {
         std::string path_str = "M";
-        for (int i = 0; i < this->res_x; i++) {
-            int idx = i * this->res_x + j;
+        for (int i = 0; i < this->res_y; i++) {
+            int idx = j + i * this->res_x;
 
             const auto& point = raster[idx];
             path_str += std::to_string((point[0] / (double)width) * 1000.0f) + "," +
@@ -487,8 +487,8 @@ double Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>
 
     // Populate velocities and delta_t
     for (int i = 0; i < target_points.size(); i++) {
-        int y = i / res_y;
-        int x = i % res_y;
+        int y = i / res_x;
+        int x = i % res_x;
 
         if (x == 0 && y == 0) {
             velocities.push_back({0, 0});
@@ -546,14 +546,10 @@ void Mesh::export_paramererization_to_svg(std::string filename, double stroke_wi
 
     svg_file << "<rect width=\"100%\" height=\"100%\" fill=\"white\"/>\n";
 
-    //int y = i / res_y;
-    //int x = i % res_y;
-    //int idx = y * this->res_x + x;
-
     for (int j = 0; j < this->res_y; j++) {
         std::string path_str = "M";
         for (int i = 0; i < this->res_x; i++) {
-            int idx = j * this->res_x + i;
+            int idx = i + j * this->res_x;
 
             const auto& point = target_points[idx];
             path_str += std::to_string((point[0] / (double)width) * 1000.0f) + "," +
@@ -565,10 +561,10 @@ void Mesh::export_paramererization_to_svg(std::string filename, double stroke_wi
         svg_file << "<path d=\"" << path_str << "\" fill=\"none\" stroke=\"black\" stroke-width=\"" << stroke_width << "\"/>\n";
     }
 
-    for (int j = 0; j < this->res_y; j++) {
+    for (int j = 0; j < this->res_x; j++) {
         std::string path_str = "M";
-        for (int i = 0; i < this->res_x; i++) {
-            int idx = i * this->res_x + j;
+        for (int i = 0; i < this->res_y; i++) {
+            int idx = j + i * this->res_x;
 
             const auto& point = target_points[idx];
             path_str += std::to_string((point[0] / (double)width) * 1000.0f) + "," +

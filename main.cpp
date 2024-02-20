@@ -150,9 +150,9 @@ int main(int argc, char const *argv[])
     std::vector<double> errors;
 
     phi.clear();
-    for (int i = 0; i < resolution_x; ++i) {
+    for (int i = 0; i < resolution_y; ++i) {
         std::vector<double> row;
-        for (int j = 0; j < resolution_y; ++j) {
+        for (int j = 0; j < resolution_x; ++j) {
             row.push_back(0.0f);
         }
         phi.push_back(row);
@@ -282,9 +282,9 @@ int main(int argc, char const *argv[])
         std::vector<std::vector<double>> divergance = calculate_divergence(norm_x, norm_y, resolution_x, resolution_y);
     
         std::vector<std::vector<double>> h;
-        for (int i = 0; i < resolution_x; ++i) {
+        for (int i = 0; i < resolution_y; ++i) {
             std::vector<double> row;
-            for (int j = 0; j < resolution_y; ++j) {
+            for (int j = 0; j < resolution_x; ++j) {
                 row.push_back(0.0f);
             }
             h.push_back(row);
