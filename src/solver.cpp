@@ -109,7 +109,7 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
 
     std::vector<std::thread> threads(num_segments_x * num_segments_y);
     
-    // set the initial guess for the solution to all zero's
+    // set the initial guess for the solution to all zero's -> removed
     /*for (int i=0; i<width; i++) {
         for (int j=0; j<width; j++) {
             output[j][i] = 0.0f;
@@ -146,7 +146,7 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
 
         if (i % 100 == 0) {
             printf("\33[2K\r");
-            printf("Max update: %f\n\r", max_update);
+            printf("Max update: %f\r", max_update);
         }
 
         if (max_update < convergence_threshold) {
