@@ -90,10 +90,16 @@ This project implements the method described in the paper "Poisson-Based Continu
         --intput_png=[image path] # input image path
     - ```bash
         --res_w=[grid resolution] # mesh resolution in the x-axis
+    - ```bash
+        --width=[mesh width] # physical width of the mesh
+    - ```bash
+        --focal_l=[focal length] # focal length
+    - ```bash
+        --thickness=[lens thickness] # thickness of the final caustic lens
 2. Execute the program:
 
     ```bash
-    ./CausticEngineering --intput_png=../img/lena.png --res_w=200
+    ./CausticEngineering.exe --intput_png=../img/siggraph.png --res_w=100 --width=0.5 --focal_l=1.5 --thickness=0.1
     ```
 
 ### Sample Output

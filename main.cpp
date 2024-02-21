@@ -14,7 +14,7 @@
 #define cimg_use_png
 //#define cimg_use_jpeg
 
-#ifdef _WIN32 || _WIN64
+#if defined(_WIN32) || defined(_WIN64)
     #include "CImg.h"
 #else
     #include<X11/Xlib.h>
@@ -77,13 +77,7 @@ double bilinearInterpolation(const std::vector<std::vector<double>>& image, doub
     return fy0 * top + fy1 * bottom;
 }
 
-int main(int argc, char const *argv[])
-{
-    /*if (argc < 3) {
-        show_usage(argv[0]);
-        return 1;
-    }*/
-
+std::unordered_map<std::string, std::string> parse_arguments(int argc, char const *argv[]) {
     // Define a map to store the parsed arguments
     std::unordered_map<std::string, std::string> args;
 
@@ -120,12 +114,26 @@ int main(int argc, char const *argv[])
         // Invalid argument format
         else {
             //std::cerr << "Invalid argument format: " << arg << std::endl;
-            return 1;
+            //return 1;
         }
 
         // Store key-value pair in the map
         args[key] = value;
     }
+
+    return args;
+}
+
+int main(int argc, char const *argv[])
+{
+    std::unordered_map<std::string, std::string> args = parse_arguments(argc, argv);
+
+    printf("loading image\r\n");
+
+    // Load image
+    cimg_library::CImg<unsigned char> image(args["intput_png"].c_str());
+
+    double aspect_ratio = image.width() / image.height();
 
     // Print parsed arguments
     /*for (const auto& pair : args) {
@@ -134,17 +142,17 @@ int main(int argc, char const *argv[])
     }*/
 
     int mesh_res_x = atoi(args["res_w"].c_str());
-    int mesh_res_y = atoi(args["res_w"].c_str());
+    int mesh_res_y = atoi(args["res_w"].c_str()) / aspect_ratio;
 
     int resolution_x = 4*mesh_res_x;
     int resolution_y = 4*mesh_res_y;
 
-    double width = 0.5;
-    double height = 0.5;
+    double width = std::stod(args["width"]);
+    double height = width / aspect_ratio;
 
-    double focal_l = 1.5f;
+    double focal_l = std::stod(args["focal_l"]);
 
-    double thickness = 0.1;
+    double thickness = std::stod(args["thickness"]);
 
     std::vector<std::vector<double>> phi;
     std::vector<double> errors;
@@ -158,11 +166,6 @@ int main(int argc, char const *argv[])
         phi.push_back(row);
     }
 
-    printf("loading image\r\n");
-
-    // Load image
-    cimg_library::CImg<unsigned char> image(args["intput_png"].c_str());
-
     image = image.resize(resolution_x, resolution_y, -100, -100, 3); // Resize using linear interpolation
 
     // Convert image to grid
@@ -170,25 +173,6 @@ int main(int argc, char const *argv[])
     image_to_grid(image, pixels);
 
     printf("converted image to grid\r\n");
-
-    //std::string image_path = cv::samples::findFile("C:/Users/dylan/Documents/caustic_engineering/img/face.png");
-    //cv::Mat img = cv::imread(image_path, cv::IMREAD_COLOR);
-    /*if(img.empty())
-    {
-        std::cout << "Could not read the image: " << image_path << std::endl;
-        return 1;
-    }*/
-
-    /*cv::Mat scaledImg;
-    cv::resize(img, scaledImg, cv::Size(resolution_x, resolution_y), cv::INTER_LINEAR);*/
-
-    //cv::bitwise_not(scaledImg, scaledImg);
-
-    // convert image to grayscale values
-    //std::vector<std::vector<double>> pixels;
-
-    //printf("hello2\r\n"); fflush(stdout);
-    //image_to_grid(scaledImg, pixels);
 
     pixels = scale_matrix_proportional(pixels, 0, 1.0f);
 
@@ -203,34 +187,34 @@ int main(int argc, char const *argv[])
     mesh.build_target_dual_cells(target_cells);
     mesh.build_source_dual_cells(source_cells);
 
-    printf("generated dual cells\r\n");
-
     std::vector<double> target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);
     
     for (int itr=0; itr<500; itr++) {
+        printf("starting iteration %i\r\n", itr);
         
         // build median dual mesh of the updated parameterization
         target_cells.clear();
         mesh.build_target_dual_cells(target_cells);
 
-        // calculate 
+        // calculate difference D (interpretation of equation 2)
         std::vector<double> source_areas = get_source_areas(target_cells);
-
         calculate_errors(source_areas, target_areas, target_cells, errors);
 
-        export_cells_as_svg(target_cells, scale_array_proportional(errors, 0.0f, 1.0f), "../cells.svg");
+        // export dual cells as svg
+        //export_cells_as_svg(target_cells, scale_array_proportional(errors, 0.0f, 1.0f), "../cells.svg");
 
+        // rasterize the mesh into a uniform rectangular matrix
         mesh.build_bvh(1, 30);
-
         std::vector<std::vector<double>> raster = mesh.interpolate_raster(errors, resolution_x, resolution_y);
 
-        printf("interpolated\r\n");
-
+        // solve the poisson equation 3 in the paper
         subtractAverage(raster);
         poisson_solver(raster, phi, resolution_x, resolution_y, 100000, 0.0000001);
 
-        printf("generated dual cells\r\n");
+        // calculate the gradient given by equation 4
         std::vector<std::vector<std::vector<double>>> grad = calculate_gradient(phi);
+
+        // calculate the gradient vectors corresponding to each vertex in the mesh
 
         // bilinear interpolating the gradients (negligibly faster, but gives lower contrast results)
         /*std::vector<std::vector<double>> gradient(2);
@@ -239,21 +223,20 @@ int main(int argc, char const *argv[])
             gradient[1].push_back(bilinearInterpolation(grad[1], mesh.target_points[i][0] * ((resolution_x - 2) / mesh.width), mesh.target_points[i][1] * ((resolution_y - 2) / mesh.height)));
         }*/
 
-        // integrate the gridient grid into the dual cells of the vertices (slower but better results)
+        // integrate the gradient grid into the dual cells of the vertices (slower but better contrast)
         std::vector<std::vector<double>> gradient = integrate_cell_gradients(grad, target_cells, resolution_x, resolution_y, width, height);
 
-        printf("integrated\r\n");
-
+        // step the mesh vertices in the direction of their gradient vector
         double min_step = mesh.step_grid(gradient[0], gradient[1], 0.5);
-        printf("stepped grid\r\n");
+        printf("stepped grid, now exporting visualizations\r\n");
 
         // iteration done, exporting visualizations:
 
-        mesh.export_to_svg("../mesh.svg", 0.5);
-
+        // export parameterization
         std::string svg_filename = "../parameterization.svg";
         mesh.export_paramererization_to_svg(svg_filename, 1.0f);
 
+        // export inverted transport map (can be used for dithering)
         mesh.build_bvh(1, 30);
         mesh.calculate_inverted_transport_map("../inverted.svg", 1.0f);
 
@@ -270,6 +253,8 @@ int main(int argc, char const *argv[])
         // convergence treshold for the parameterization
         if (min_step*(resolution_x/width) < 0.005) break;
     }
+
+    printf("\033[0;32mTransport map solver done! Starting height solver.\033[0m\r\n");
 
     // uses uniform grid as caustic surface
     for (int itr=0; itr<3; itr++) {
@@ -336,6 +321,8 @@ int main(int argc, char const *argv[])
 
         mesh.set_target_heights(interpolated_h);
     }*/
+
+    printf("Height solver done! Exporting as solidified obj\r\n");
 
     mesh.save_solid_obj(thickness, "../output.obj");
 
