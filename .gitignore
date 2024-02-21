@@ -7,9 +7,10 @@ build
 *.jpg
 *.jpeg
 
-param
-
 !doc/*
+
+!img/lena.png
+!img/siggraph.png
 
 # Prerequisites
 *.d

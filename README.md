@@ -103,18 +103,17 @@ This project implements the method described in the paper "Poisson-Based Continu
     ```
 
 ### Sample Output
+|||||||
+|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
+||input_image|parameterization|inverted parameterization|3d_model|simulation|
+|Lena|![Alt text](./img/lena.png)|![Alt text](./doc/lena_parameterization.svg)|![Alt text](./doc/lena_inverted.svg)|![Alt text](./doc/lena_3d.png)|![Alt text](./doc/lena_sim.png)|
+|Siggraph logo|![Alt text](./img/siggraph.png)|![Alt text](./doc/siggraph_parameterization.svg)|![Alt text](./doc/siggraph_inverted.svg)|![Alt text](./doc/siggraph_3d.png)|![Alt text](./doc/siggraph_sim.png)|
+
+Lena:
 
 transport from an image to an almost uniform distribution:
 
 ![Alt text](./doc/lena_parameterization.gif)
-
-transport map parameterization mesh:
-
-![Alt text](./doc/parameterization.svg)
-
-inverted transport map:
-
-![Alt text](./doc/inverted.svg)
 
 ## Contributing
 
