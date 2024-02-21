@@ -2,12 +2,14 @@ build
 .vscode
 .vs
 
-*.svg
-*.png
-*.jpg
-*.jpeg
+/img/*.svg
+/img/*.png
+/img/*.jpg
+/img/*.jpeg
 
-!doc/*
+/*.png
+/*.svg
+
 
 !img/lena.png
 !img/siggraph.png
@@ -47,9 +49,6 @@ build
 
 build
 .vscode
-
-*.svg
-*.png
 
 # Prerequisites
 *.d
