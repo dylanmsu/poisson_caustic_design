@@ -434,11 +434,11 @@ double Mesh::find_min_delta_t(const std::vector<std::vector<double>>& velocities
     for (int tri=0; tri<this->triangles.size(); tri++) {
         std::vector<std::vector<double>> t_values;
         // try every combination
-        //t_values.push_back(find_t(target_points[triangles[tri][0]], target_points[triangles[tri][1]], target_points[triangles[tri][2]], velocities[triangles[tri][0]], velocities[triangles[tri][1]], velocities[triangles[tri][2]]));
+        t_values.push_back(find_t(target_points[triangles[tri][0]], target_points[triangles[tri][1]], target_points[triangles[tri][2]], velocities[triangles[tri][0]], velocities[triangles[tri][1]], velocities[triangles[tri][2]]));
         //t_values.push_back(find_t(target_points[triangles[tri][1]], target_points[triangles[tri][0]], target_points[triangles[tri][2]], velocities[triangles[tri][1]], velocities[triangles[tri][0]], velocities[triangles[tri][2]]));
         //t_values.push_back(find_t(target_points[triangles[tri][2]], target_points[triangles[tri][0]], target_points[triangles[tri][1]], velocities[triangles[tri][2]], velocities[triangles[tri][0]], velocities[triangles[tri][1]]));
         //t_values.push_back(find_t(target_points[triangles[tri][0]], target_points[triangles[tri][2]], target_points[triangles[tri][1]], velocities[triangles[tri][0]], velocities[triangles[tri][2]], velocities[triangles[tri][1]]));
-        t_values.push_back(find_t(target_points[triangles[tri][2]], target_points[triangles[tri][1]], target_points[triangles[tri][0]], velocities[triangles[tri][2]], velocities[triangles[tri][1]], velocities[triangles[tri][0]]));
+        //t_values.push_back(find_t(target_points[triangles[tri][2]], target_points[triangles[tri][1]], target_points[triangles[tri][0]], velocities[triangles[tri][2]], velocities[triangles[tri][1]], velocities[triangles[tri][0]]));
         //t_values.push_back(find_t(target_points[triangles[tri][1]], target_points[triangles[tri][2]], target_points[triangles[tri][0]], velocities[triangles[tri][1]], velocities[triangles[tri][2]], velocities[triangles[tri][0]]));
 
         // Ignore negative or zero values
@@ -459,7 +459,7 @@ double Mesh::find_min_delta_t(const std::vector<std::vector<double>>& velocities
         triangle.push_back(target_points[triangles[tri][1]]);
         triangle.push_back(target_points[triangles[tri][2]]);
         if (calculate_polygon_area_vec(triangle) <= 0.0f) {
-            printf("negative area!\r\n");
+            printf("Triangle has negative area!\r\n");
         }
 
         //std::cout << valid_t_values.size() << std::endl;
@@ -482,8 +482,6 @@ double Mesh::find_min_delta_t(const std::vector<std::vector<double>>& velocities
 // Function to update points based on velocities and minimum delta_t
 double Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>& dfy, double step_size) {
     std::vector<std::vector<double>> velocities;
-
-    printf("populated velocities\r\n");
 
     // Populate velocities and delta_t
     for (int i = 0; i < target_points.size(); i++) {
@@ -511,14 +509,12 @@ double Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>
         }
     }
 
-    // Apply regularization to the velocity field if needed
-    // for (size_t i = 0; i < velocities.size(); ++i) {
-    //     double regularization_term = regularization_coeff * std::sqrt(std::pow(velocities[i][0], 2) + std::pow(velocities[i][1], 2));
-    //     velocities[i][0] -= regularization_term * velocities[i][0];
-    //     velocities[i][1] -= regularization_term * velocities[i][1];
-    // }
-
-    printf("finding min_delta_t\r\n");
+    // Apply regularization to the velocity field
+    for (size_t i = 0; i < velocities.size(); ++i) {
+        double regularization_term = 0.002 * std::sqrt(std::pow(velocities[i][0], 2) + std::pow(velocities[i][1], 2));
+        velocities[i][0] -= regularization_term * velocities[i][0];
+        velocities[i][1] -= regularization_term * velocities[i][1];
+    }
 
     double min_t = find_min_delta_t(velocities);
     //std::cout << "min_t = " << min_t << std::endl;
@@ -528,8 +524,6 @@ double Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>
         target_points[i][0] += velocities[i][0] * min_t * step_size;
         target_points[i][1] += velocities[i][1] * min_t * step_size;
     }
-
-    printf("stepped\r\n");
 
     return min_t;
 }
