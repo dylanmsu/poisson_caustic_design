@@ -510,11 +510,11 @@ double Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>
     }
 
     // Apply regularization to the velocity field
-    for (size_t i = 0; i < velocities.size(); ++i) {
+    /*for (size_t i = 0; i < velocities.size(); ++i) {
         double regularization_term = 0.002 * std::sqrt(std::pow(velocities[i][0], 2) + std::pow(velocities[i][1], 2));
         velocities[i][0] -= regularization_term * velocities[i][0];
         velocities[i][1] -= regularization_term * velocities[i][1];
-    }
+    }*/
 
     double min_t = find_min_delta_t(velocities);
     //std::cout << "min_t = " << min_t << std::endl;
