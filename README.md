@@ -148,11 +148,11 @@ Contributions are welcome! If you'd like to contribute to this project, please f
 
 ## License
 
-TODO
+This project uses the MIT License.
 
 ## Acknowledgements
 
-Thank you to Yue et al for their awesome research paper on this algorithm.
+Thank you to Yue et al for their awesome research paper.
 
 I would also like to thank Matt Ferraro for providing [their informative article](https://mattferraro.dev/posts/caustics-engineering) about the paper.
 
