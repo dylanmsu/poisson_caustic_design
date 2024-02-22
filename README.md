@@ -10,6 +10,7 @@ This project implements the method described in the paper [Poisson-Based Continu
 - exports a solidified .obj
 - the only c++17 non-standard dependancy is libpng
 - can export the the inverse transport map
+- multithreaded poisson solver
 
 ## Installation
 
