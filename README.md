@@ -48,7 +48,7 @@ This project implements the method described in the paper [Poisson-Based Continu
 
 4. Run the code:
     ```bash
-    ./CausticEngineering
+    ./CausticEngineering [parameters]
     ```
 
 ### Building from Source: Windows
@@ -79,7 +79,7 @@ This project implements the method described in the paper [Poisson-Based Continu
 
 4. Run the code:
     ```bash
-    ./CausticEngineering.exe
+    ./CausticEngineering.exe [parameters]
     ```
 
 ## Usage
