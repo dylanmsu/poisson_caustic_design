@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <vector>
+#include <mutex>
 
 #include "solver.h"
 
@@ -98,12 +99,14 @@ double patial_relax(std::vector<std::vector<double>> &output, std::vector<std::v
     return max_update;
 }
 
-void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::vector<double>> &output, int width, int height, int max_iterations, double convergence_threshold) {
+void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::vector<double>> &output, int width, int height, int max_iterations, double convergence_threshold, int max_threads) {
     double omega = 2.0 / (1.0 + 3.14159265 / width);
 
     int num_threads = std::thread::hardware_concurrency();
 
-    // process grid into x*y subsets
+    num_threads = fmin(max_threads, num_threads);
+
+    // process grid into all equal subsets
     int num_segments_x = floor(sqrt(num_threads));
     int num_segments_y = num_segments_x;
 
@@ -119,13 +122,18 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
     for (int i = 0; i < max_iterations; i++) {
         double max_update = 0.0;
 
+        std::mutex mtx;
+
         // Function to process a portion of the grid
         auto process_grid_part = [&](int start_x, int start_y, int end_x, int end_y) {
             double local_max_update = 0.0;
             local_max_update = patial_relax(output, input, width, height, omega, start_x, start_y, end_x, end_y);
+            
+            mtx.lock();
             if (max_update < local_max_update) {
                 max_update = local_max_update;
             }
+            mtx.unlock();
         };
 
         // Create tasks to process the grid in chunks
@@ -146,11 +154,11 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
 
         if (i % 100 == 0) {
             printf("\33[2K\r");
-            printf("Max update: %f\r", max_update);
+            printf("Solver max_update: %.5e, convergence at %.2e\r", max_update, convergence_threshold);
         }
 
         if (max_update < convergence_threshold) {
-            printf("Convergence reached at iteration %d with max_update of %lf\n", i, max_update);
+            printf("Convergence reached at iteration %d with max_update of %.5e\n", i, max_update);
             break;
         }
     }
