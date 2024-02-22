@@ -2,20 +2,21 @@
 
 ## Overview
 
-This project implements the method described in the paper "Poisson-Based Continuous Surface Generation for Goal-Based Caustics".
+This project implements the method described in the paper [Poisson-Based Continuous Surface Generation for Goal-Based Caustics](http://www.cs.columbia.edu/~yonghao/tog14/yue-continuous-caustics-lens.pdf).
 
 ## Features
 
 - Implementation of the Poisson-based continuous surface generation algorithm.
 - exports a solidified .obj
-- the only non-standard dependancy is libpng
+- the only c++17 non-standard dependancy is libpng
 - can export the the inverse transport map
+- multithreaded poisson solver
 
 ## Installation
 
 ### Prerequisites
 
-- C++ compiler with C++11 support for your platform
+- C++ compiler with C++17 support for your platform
 - libpng (requires zlib)
 
 ### Building from Source: Unix
@@ -103,17 +104,42 @@ This project implements the method described in the paper "Poisson-Based Continu
     ```
 
 ### Sample Output
-|||||||
-|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
-||input_image|parameterization|inverted parameterization|3d_model|simulation|
-|Lena|![Alt text](./img/lena.png)|![Alt text](./doc/lena_parameterization.svg)|![Alt text](./doc/lena_inverted.svg)|![Alt text](./doc/lena_3d.png)|![Alt text](./doc/lena_sim.png)|
-|Siggraph logo|![Alt text](./img/siggraph.png)|![Alt text](./doc/siggraph_parameterization.svg)|![Alt text](./doc/siggraph_inverted.svg)|![Alt text](./doc/siggraph_3d.png)|![Alt text](./doc/siggraph_sim.png)|
-
-Lena:
+<table style="width: 100%;">
+  <tr>
+    <th style="text-align: center;"></th>
+    <th style="text-align: center;">input_image</th>
+    <th style="text-align: center;">parameterization</th>
+    <th style="text-align: center;">inverted parameterization</th>
+    <th style="text-align: center;">3d_model</th>
+    <th style="text-align: center;">simulation</th>
+  </tr>
+  <tr>
+    <td style="text-align: center;">Lena</td>
+    <td style="text-align: center;"><img src="./img/lena.png" alt="Lena Parameterization"></td>
+    <td style="text-align: center;"><img src="./doc/lena_parameterization.svg" alt="Lena Parameterization" width="500"></td>
+    <td style="text-align: center;"><img src="./doc/lena_inverted.svg" alt="Lena Inverted Parameterization" width="500"></td>
+    <td style="text-align: center;"><img src="./doc/lena_3d.png" alt="Lena 3D Model"></td>
+    <td style="text-align: center;"><img src="./doc/lena_sim.png" alt="Lena Simulation"></td>
+  </tr>
+  <tr>
+    <td style="text-align: center;">Siggraph logo</td>
+    <td style="text-align: center;"><img src="./img/siggraph.png" alt="Lena Parameterization"></td>
+    <td style="text-align: center;"><img src="./doc/siggraph_parameterization.svg" alt="Siggraph Parameterization" width="500"></td>
+    <td style="text-align: center;"><img src="./doc/siggraph_inverted.svg" alt="Siggraph Inverted Parameterization" width="500"></td>
+    <td style="text-align: center;"><img src="./doc/siggraph_3d.png" alt="Siggraph 3D Model"></td>
+    <td style="text-align: center;"><img src="./doc/siggraph_sim.png" alt="Siggraph Simulation"></td>
+  </tr>
+</table>
 
 transport from an image to an almost uniform distribution:
 
 ![Alt text](./doc/lena_parameterization.gif)
+
+## Future plans
+
+1. Non-zero divergance for the height solver -> this will allow more freedom in the lens design
+2. reflective caustics -> is currently not that usefull because of the limited freedom in the height solver
+3. circular lenses
 
 ## Contributing
 
@@ -128,9 +154,11 @@ Contributions are welcome! If you'd like to contribute to this project, please f
 
 ## License
 
-TODO
+This project uses the MIT License.
 
 ## Acknowledgements
 
-TODO
+Thank you to Yue et al for their awesome research paper.
+
+I would also like to thank Matt Ferraro for providing [their informative article](https://mattferraro.dev/posts/caustics-engineering) about the paper.
 
