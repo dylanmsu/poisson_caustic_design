@@ -129,11 +129,16 @@ This project implements the method described in the paper [Poisson-Based Continu
     <td style="text-align: center;"><img src="./doc/siggraph_sim.png" alt="Siggraph Simulation"></td>
   </tr>
 </table>
-Lena:
 
 transport from an image to an almost uniform distribution:
 
 ![Alt text](./doc/lena_parameterization.gif)
+
+## Future plans
+
+1. Non-zero divergance for the height solver -> this will allow more freedom in the lens design
+2. reflective caustics -> is currently not that usefull because of the limited freedom in the height solver
+3. circular lenses
 
 ## Contributing
 
