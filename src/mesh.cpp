@@ -653,22 +653,22 @@ void Mesh::save_solid_obj(double thickness, const std::string& filename) {
 
     // Curved mesh verts on the bottom
     for (const auto& point : this->source_points) {
-        file << "v " << point[0] << " " << this->height - point[1] << " " << -(point[2] - min_h) << "\n";
+        file << "v " << this->width - point[0] << " " << this->height - point[1] << " " << -(point[2] - min_h) << "\n";
     }
 
     // Flat mesh verts on the bottom
     for (const auto& point : this->source_points) {
-        file << "v " << point[0] << " " << this->height - point[1] << " " << -thickness << "\n";
+        file << "v " << this->width - point[0] << " " << this->height - point[1] << " " << -thickness << "\n";
     }
 
     // Curved mesh triangles on the top
     for (const auto& triangle : this->triangles) {
-        file << "f " << triangle[0] + 1 << " " << triangle[2] + 1 << " " << triangle[1] + 1 << "\n";
+        file << "f " << triangle[0] + 1 << " " << triangle[1] + 1 << " " << triangle[2] + 1 << "\n";
     }
 
     // Flat mesh triangles on the bottom
     for (const auto& triangle : this->triangles) {
-        file << "f " << triangle[0] + num_points + 1 << " " << triangle[1] + num_points + 1 << " " << triangle[2] + num_points + 1 << "\n";
+        file << "f " << triangle[0] + num_points + 1 << " " << triangle[2] + num_points + 1 << " " << triangle[1] + num_points + 1 << "\n";
     }
 
     // Generate triangles connecting top and bottom mesh
@@ -682,8 +682,10 @@ void Mesh::save_solid_obj(double thickness, const std::string& filename) {
         int next_bottom_idx = perimeter_verts[(i + 1) % perimeter_verts.size()] + num_points;
 
 
-        file << "f " << top_idx + 1 << " " << next_bottom_idx + 1 << " " << bottom_idx + 1 << "\n";
-        file << "f " << top_idx + 1 << " " << next_top_idx + 1 << " " << next_bottom_idx + 1 << "\n";
+        file << "f " << top_idx + 1 << " " << bottom_idx + 1 << " " << next_bottom_idx + 1 << "\n";
+        file << "f " << top_idx + 1 << " " << next_bottom_idx + 1 << " " << next_top_idx + 1 << "\n";
+        //file << "f " << top_idx + 1 << " " << next_bottom_idx + 1 << " " << bottom_idx + 1 << "\n";
+        //file << "f " << top_idx + 1 << " " << next_top_idx + 1 << " " << next_bottom_idx + 1 << "\n";
     }
 
     //std::cout << "Exported model \"" << filename << "\"" << std::endl;
