@@ -129,6 +129,14 @@ This project implements the method described in the paper [Poisson-Based Continu
     <td style="text-align: center;"><img src="./doc/siggraph_3d.png" alt="Siggraph 3D Model"></td>
     <td style="text-align: center;"><img src="./doc/siggraph_sim.png" alt="Siggraph Simulation"></td>
   </tr>
+  <tr>
+    <td style="text-align: center;">Hello World</td>
+    <td style="text-align: center;"><img src="./img/hello.png" alt="Lena Parameterization"></td>
+    <td style="text-align: center;"><img src="./doc/hello_parameterization.svg" alt="Siggraph Parameterization" width="500"></td>
+    <td style="text-align: center;"><img src="./doc/hello_inverted.svg" alt="Siggraph Inverted Parameterization" width="500"></td>
+    <td style="text-align: center;"><img src="./doc/hello_3d.png" alt="Siggraph 3D Model"></td>
+    <td style="text-align: center;"><img src="./doc/hello_sim.png" alt="Siggraph Simulation"></td>
+  </tr>
 </table>
 
 transport from an image to an almost uniform distribution:
