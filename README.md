@@ -148,6 +148,7 @@ transport from an image to an almost uniform distribution:
 1. Non-zero divergance for the height solver -> this will allow more freedom in the lens design
 2. reflective caustics -> is currently not that usefull because of the limited freedom in the height solver
 3. circular lenses
+4. create portable builds for Win/Linux in releases
 
 ## Contributing
 
