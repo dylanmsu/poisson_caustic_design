@@ -209,7 +209,7 @@ int main(int argc, char const *argv[])
 
         // solve the poisson equation 3 in the paper
         subtractAverage(raster);
-        poisson_solver(raster, phi, resolution_x, resolution_y, 100000, 0.0000001);
+        poisson_solver(raster, phi, resolution_x, resolution_y, 100000, 0.0000001, 16);
 
         // calculate the gradient given by equation 4
         std::vector<std::vector<std::vector<double>>> grad = calculate_gradient(phi);
@@ -276,7 +276,7 @@ int main(int argc, char const *argv[])
         }
 
         subtractAverage(divergance);
-        poisson_solver(divergance, h, resolution_x, resolution_y, 100000, 0.0000001);
+        poisson_solver(divergance, h, resolution_x, resolution_y, 100000, 0.0000001, 16);
 
         double epsilon = std::numeric_limits<double>::epsilon();
 
