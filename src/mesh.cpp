@@ -653,12 +653,12 @@ void Mesh::save_solid_obj(double thickness, const std::string& filename) {
 
     // Curved mesh verts on the bottom
     for (const auto& point : this->source_points) {
-        file << "v " << point[0] << " " << this->width - point[1] << " " << -(point[2] - min_h) << "\n";
+        file << "v " << point[0] << " " << this->height - point[1] << " " << -(point[2] - min_h) << "\n";
     }
 
     // Flat mesh verts on the bottom
     for (const auto& point : this->source_points) {
-        file << "v " << point[0] << " " << this->width - point[1] << " " << -thickness << "\n";
+        file << "v " << point[0] << " " << this->height - point[1] << " " << -thickness << "\n";
     }
 
     // Curved mesh triangles on the top
