@@ -210,6 +210,10 @@ void Bvh::intersectNode(int nodeId, std::vector<double> &point, Hit &hit, bool &
                     found = true;
                     return;
                 }
+                else
+                {
+                    found = false;
+                }
             }
         } else {
             //std::cout << "point is not inside bbox" << std::endl;
@@ -245,6 +249,7 @@ void Bvh::query(std::vector<double> point, Hit &hit, bool &intersection_found)
     {
         intersectNode(0, point, hit, intersection_found);
     } else {
-        printf("outside main bbox\r\n");
+        //printf("outside main bbox\r\n");
+        intersection_found = false;
     }
 }

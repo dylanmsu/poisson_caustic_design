@@ -14,6 +14,8 @@ Mesh::Mesh(double width, double height, int res_x, int res_y)
     generate_structured_mesh(res_x, res_y, width, height, this->triangles, this->target_points);
     build_vertex_to_triangles();
 
+    //circular_transform(this->target_points);
+
     // Duplicate mesh points
     for (int i=0; i<this->target_points.size(); i++) {
         this->source_points.push_back(this->target_points[i]);
@@ -55,7 +57,20 @@ void Mesh::generate_structured_mesh(int nx, int ny, double width, double height,
 }
 
 // transforms a square grid into a circular grid -> to support circular lenses in the future
-std::vector<point_t> Mesh::circular_transform(std::vector<point_t> input_points) {
+/*void Mesh::circular_transform(std::vector<point_t> &input_points) {
+    for (int i = 0; i < input_points.size(); i++) {
+        double x = input_points[i][0] - this->width/2.0f;
+        double y = input_points[i][1] - this->height/2.0f;
+
+        input_points[i][0] = x * sqrt(1.0 - 2.0*(y * y));
+        input_points[i][1] = y * sqrt(1.0 - 2.0*(x * x));
+
+        input_points[i][0] += this->width/2.0f;
+        input_points[i][1] += this->height/2.0f;
+    }
+}*/
+
+std::vector<point_t> Mesh::circular_transform(std::vector<point_t> &input_points) {
     std::vector<point_t> transformed_points;
     for (int i = 0; i < input_points.size(); i++) {
         point_t transformed_point(3);
@@ -277,6 +292,15 @@ void Mesh::build_target_dual_cells(std::vector<std::vector<point_t>> &cells) {
     }
 }
 
+// build barycentric dual mesh for the target mesh
+void Mesh::build_circular_target_dual_cells(std::vector<std::vector<point_t>> &cells) {
+    std::vector<point_t> temp_points = circular_transform(source_points);
+    for (int i=0; i<temp_points.size(); i++) {
+        std::vector<point_t> cell = get_barycentric_dual_cell(i, temp_points);
+        cells.push_back(cell);
+    }
+}
+
 // interpolate target mesh into a rectangular grid
 std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<double>& errors, int res_x, int res_y) {
     // Generate x and y vectors
@@ -309,7 +333,7 @@ std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<doub
                     vertex_values[2]*hit.barycentric_coords[2];
                 row.push_back(interpolation);
             } else {
-                row.push_back(1.0);
+                row.push_back(NAN);
             }
         }
         raster.push_back(row);
@@ -575,19 +599,67 @@ void Mesh::export_paramererization_to_svg(std::string filename, double stroke_wi
     svg_file.close();
 }
 
-std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal_len, double refractive_index) {
+/*std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal_len, double refractive_index) {
     std::vector<double> x_normals;
     std::vector<double> y_normals;
 
     for (int i=0; i<this->target_points.size(); i++) {
         double dx = this->source_points[i][0] - this->target_points[i][0];
         double dy = this->source_points[i][1] - this->target_points[i][1];
-        double dz = this->source_points[i][2] - this->target_points[i][2];
+        double dz = (this->source_points[i][2] + focal_len) + this->target_points[i][2];
 
-        double k = refractive_index * std::sqrt((dx * dx + dy * dy) + (focal_len - dz) * (focal_len - dz)) - (focal_len - dz);
+        double k = refractive_index * std::sqrt(dx * dx + dy * dy + dz * dz) - dz;
 
         x_normals.push_back((1.0f / k) * dx);
         y_normals.push_back((1.0f / k) * dy);
+    }
+
+    return {x_normals, y_normals};
+}*/
+
+void normalize(std::vector<double> &vec) {
+    double len = std::sqrt(vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2]);
+    for (int i=0; i<vec.size(); i++) {
+        vec[i] /= len;
+    }
+}
+
+std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal_len, double refractive_index) {
+    std::vector<double> x_normals;
+    std::vector<double> y_normals;
+
+    // n = (t - µi) / ||(t - µi)||
+    // where:
+    // n = surface normal
+    // t = transmitted ray normal
+    // i = incident ray normal
+    // µ = refraction coefficient
+
+    //std::vector<double> point = {0, 0, -20.0f};
+
+    std::vector<double> incident = {0.0f, 0.0f, 1.0f};
+
+    for (int i=0; i<this->target_points.size(); i++) {
+        std::vector<double> transmitted = {
+            this->source_points[i][0] - this->target_points[i][0],
+            this->source_points[i][1] - this->target_points[i][1],
+            this->source_points[i][2] - this->target_points[i][2] + focal_len
+        };
+
+        //std::vector<double> incident = {0.0f, 0.0f, 0.0f};
+        //incident[0] = this->target_points[i][0] - point[0];
+        //incident[1] = this->target_points[i][1] - point[1];
+        //incident[2] = this->target_points[i][2] - point[2];
+
+        normalize(transmitted);
+        normalize(incident);
+
+        double x_normal = transmitted[0] - incident[0] * refractive_index;
+        double y_normal = transmitted[1] - incident[1] * refractive_index;
+        double z_normal = transmitted[2] - incident[2] * refractive_index;
+
+        x_normals.push_back(x_normal / z_normal);
+        y_normals.push_back(y_normal / z_normal);
     }
 
     return {x_normals, y_normals};
@@ -595,13 +667,13 @@ std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal
 
 void Mesh::set_source_heights(std::vector<double> heights) {
     for (int i=0; i<heights.size(); i++) {
-        this->source_points[i][2] = -heights[i];
+        this->source_points[i][2] = heights[i];
     }
 }
 
 void Mesh::set_target_heights(std::vector<double> heights) {
     for (int i=0; i<heights.size(); i++) {
-        this->target_points[i][2] = -heights[i];
+        this->target_points[i][2] = heights[i];
     }
 }
 
@@ -627,7 +699,7 @@ void find_perimeter_vertices(int nx, int ny, std::vector<int> &perimeter_vertice
     }
 }
 
-void Mesh::save_solid_obj(double thickness, const std::string& filename) {
+void Mesh::save_solid_obj_source(double thickness, const std::string& filename) {
     int num_points = this->source_points.size();
 
     std::ofstream file(filename);
@@ -653,12 +725,76 @@ void Mesh::save_solid_obj(double thickness, const std::string& filename) {
 
     // Curved mesh verts on the bottom
     for (const auto& point : this->source_points) {
-        file << "v " << this->width - point[0] << " " << this->height - point[1] << " " << -(point[2] - min_h) << "\n";
+        file << "v " << this->width - point[0] << " " << this->height - point[1] << " " << -(point[2]) << "\n";
     }
 
     // Flat mesh verts on the bottom
     for (const auto& point : this->source_points) {
-        file << "v " << this->width - point[0] << " " << this->height - point[1] << " " << -thickness << "\n";
+        file << "v " << this->width - point[0] << " " << this->height - point[1] << " " << -thickness - min_h << "\n";
+    }
+
+    // Curved mesh triangles on the top
+    for (const auto& triangle : this->triangles) {
+        file << "f " << triangle[0] + 1 << " " << triangle[1] + 1 << " " << triangle[2] + 1 << "\n";
+    }
+
+    // Flat mesh triangles on the bottom
+    for (const auto& triangle : this->triangles) {
+        file << "f " << triangle[0] + num_points + 1 << " " << triangle[2] + num_points + 1 << " " << triangle[1] + num_points + 1 << "\n";
+    }
+
+    // Generate triangles connecting top and bottom mesh
+    std::vector<int> perimeter_verts;
+    find_perimeter_vertices(this->res_x, this->res_y, perimeter_verts);
+
+    for (size_t i = 0; i < perimeter_verts.size(); ++i) {
+        int top_idx = perimeter_verts[i];
+        int bottom_idx = perimeter_verts[i] + num_points;
+        int next_top_idx = perimeter_verts[(i + 1) % perimeter_verts.size()];
+        int next_bottom_idx = perimeter_verts[(i + 1) % perimeter_verts.size()] + num_points;
+
+
+        file << "f " << top_idx + 1 << " " << bottom_idx + 1 << " " << next_bottom_idx + 1 << "\n";
+        file << "f " << top_idx + 1 << " " << next_bottom_idx + 1 << " " << next_top_idx + 1 << "\n";
+        //file << "f " << top_idx + 1 << " " << next_bottom_idx + 1 << " " << bottom_idx + 1 << "\n";
+        //file << "f " << top_idx + 1 << " " << next_top_idx + 1 << " " << next_bottom_idx + 1 << "\n";
+    }
+
+    //std::cout << "Exported model \"" << filename << "\"" << std::endl;
+}
+
+void Mesh::save_solid_obj_target(double thickness, const std::string& filename) {
+    int num_points = this->target_points.size();
+
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Error opening file: " << filename << std::endl;
+        return;
+    }
+
+    // Find maximum height
+    double min_h = 0;
+    for (int i=0; i<num_points; i++) {
+        double h = this->target_points[i][2];
+
+        if (min_h > h) {
+            min_h = h;
+        }
+    }
+
+    file << "# Generated by the software algorithm written by Dylan Missuwe" << "\n";
+    file << "# The algorithm used to create the lens is based on the paper " 
+        << "\"Poisson-Based Continuous Surface Generation for Goal-Based Caustics\" " 
+        << "by Yue et al (2014)" << "\n";
+
+    // Curved mesh verts on the bottom
+    for (const auto& point : this->target_points) {
+        file << "v " << this->width - point[0] << " " << this->height - point[1] << " " << -(point[2]) << "\n";
+    }
+
+    // Flat mesh verts on the bottom
+    for (const auto& point : this->target_points) {
+        file << "v " << this->width - point[0] << " " << this->height - point[1] << " " << -thickness - min_h << "\n";
     }
 
     // Curved mesh triangles on the top

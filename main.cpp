@@ -184,9 +184,12 @@ int main(int argc, char const *argv[])
 
     std::vector<std::vector<std::vector<double>>> target_cells;
     std::vector<std::vector<std::vector<double>>> source_cells;
+    //std::vector<std::vector<std::vector<double>>> circ_target_cells;
     mesh.build_target_dual_cells(target_cells);
     mesh.build_source_dual_cells(source_cells);
+    //mesh.build_circular_target_dual_cells(circ_target_cells);
 
+    //std::vector<double> target_areas = get_target_areas(pixels, circ_target_cells, resolution_x, resolution_y, width, height);
     std::vector<double> target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);
     
     for (int itr=0; itr<500; itr++) {
@@ -201,7 +204,7 @@ int main(int argc, char const *argv[])
         calculate_errors(source_areas, target_areas, target_cells, errors);
 
         // export dual cells as svg
-        //export_cells_as_svg(target_cells, scale_array_proportional(errors, 0.0f, 1.0f), "../cells.svg");
+        export_cells_as_svg(target_cells, scale_array_proportional(errors, 0.0f, 1.0f), "../cells.svg");
 
         // rasterize the mesh into a uniform rectangular matrix
         mesh.build_bvh(1, 30);
@@ -245,8 +248,8 @@ int main(int argc, char const *argv[])
         raster = scale_matrix_proportional(raster, 0, 1.0f);
         save_grid_as_image(raster, resolution_x, resolution_y, png_filename);//*/
 
-        //std::string phi_filename = "../phi.png";
-        //save_grid_as_image(scale_matrix_proportional(phi , 0, 1.0f), resolution_x, resolution_y, phi_filename);//*/
+        std::string phi_filename = "../phi.png";
+        save_grid_as_image(scale_matrix_proportional(phi, 0, 1.0f), resolution_x, resolution_y, phi_filename);//*/
 
         printf("min_step = %f\r\n", min_step*(resolution_x/width));
 
@@ -255,6 +258,9 @@ int main(int argc, char const *argv[])
     }
 
     printf("\033[0;32mTransport map solver done! Starting height solver.\033[0m\r\n");
+
+    //mesh.target_points = mesh.circular_transform(mesh.target_points);
+    //mesh.source_points = mesh.circular_transform(mesh.source_points);
 
     // uses uniform grid as caustic surface
     for (int itr=0; itr<3; itr++) {
@@ -285,12 +291,18 @@ int main(int argc, char const *argv[])
             interpolated_h.push_back(bilinearInterpolation(h, mesh.source_points[i][0] * ((resolution_x - 1 - 1.0f/resolution_x) / mesh.width), mesh.source_points[i][1] * ((resolution_y - 1 - 1.0f/resolution_y) / mesh.height)));
         }
         
-        /*std::vector<std::vector<std::vector<double>>> source_cells;
-        mesh.build_source_dual_cells(source_cells);
-        std::vector<double> interpolated_h = integrate_grid_into_cells(h, source_cells, resolution_x, resolution_y, width, height);*/
+        //std::vector<std::vector<std::vector<double>>> source_cells;
+        //mesh.build_source_dual_cells(source_cells);
+        //std::vector<double> interpolated_h = integrate_grid_into_cells(h, source_cells, resolution_x, resolution_y, width, height);
 
         mesh.set_source_heights(interpolated_h);
-    }//*/
+    }
+
+    printf("Height solver done! Exporting as solidified obj\r\n");
+
+    mesh.save_solid_obj_source(thickness, "../output.obj");
+    
+    //*/
 
     // uses parameterization grid as caustic surface
     /*for (int itr=0; itr<3; itr++) {
@@ -312,7 +324,7 @@ int main(int argc, char const *argv[])
         }
 
         subtractAverage(divergance);
-        poisson_solver(divergance, h, resolution_x, resolution_y, 100000, 0.0000001);
+        poisson_solver(divergance, h, resolution_x, resolution_y, 100000, 1e-8, 16);
 
         std::vector<double> interpolated_h;
         for (int i=0; i<mesh.target_points.size(); i++) {
@@ -320,11 +332,13 @@ int main(int argc, char const *argv[])
         }
 
         mesh.set_target_heights(interpolated_h);
-    }*/
+    }
 
     printf("Height solver done! Exporting as solidified obj\r\n");
 
-    mesh.save_solid_obj(thickness, "../output.obj");
+    mesh.save_solid_obj_target(thickness, "../output.obj");
+    
+    //*/
 
     return 0;
 }

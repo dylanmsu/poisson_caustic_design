@@ -16,76 +16,19 @@ double patial_relax(std::vector<std::vector<double>> &output, std::vector<std::v
             double val = output[y][x];
             double delta;
 
-            // corner 1
-            if (x == 0 && y == 0) {
-                double val_down = output[(y + 1)][x];
-                double val_right = output[(y)][(x + 1)];
-                delta = omega / 2 * (val_down + val_right - 2 * val - input[y][x]);
-            }
+            double neighbor_sum = 0.0f;
+            double neighbor_cnt = 0.0f;
 
-            // corner 2
-            else if (x == 0 && y == (height-1)) {
-                double val_up = output[(y - 1)][x];
-                double val_right = output[(y)][(x + 1)];
-                delta = omega / 2 * (val_up + val_right - 2 * val - input[y][x]);
-            }
+            // boundary conditions
+            if (x != 0 && !std::isnan(input[y][x - 1]))             {neighbor_cnt += 1.0f; neighbor_sum += output[y][x - 1];}
+            if (y != 0 && !std::isnan(input[y - 1][x]))             {neighbor_cnt += 1.0f; neighbor_sum += output[y - 1][x];}
+            if (x != (width-1) && !std::isnan(input[y][x + 1]))     {neighbor_cnt += 1.0f; neighbor_sum += output[y][x + 1];}
+            if (y != (height-1) && !std::isnan(input[y + 1][x]))    {neighbor_cnt += 1.0f; neighbor_sum += output[y + 1][x];}
 
-            // corner 3
-            else if (x == (width-1) && y == 0) {
-                double val_down = output[(y + 1)][x];
-                double val_left = output[(y)][(x - 1)];
-                delta = omega / 2 * (val_down + val_left - 2 * val - input[y][x]);
-            }
+            // calculate delta
+            delta = omega / neighbor_cnt * (neighbor_sum - neighbor_cnt * val - input[y][x]);
 
-            // corner 4
-            else if (x == (width-1) && y == (height-1)){
-                double val_up = output[(y - 1)][x];
-                double val_left = output[(y)][(x - 1)];
-                delta = omega / 2 * (val_up + val_left - 2 * val - input[y][x]);
-            }
-            
-            // side 1
-            else if (x == 0) {
-                double val_up = output[(y - 1)][x];
-                double val_down = output[(y + 1)][x];
-                double val_right = output[(y)][(x + 1)];
-                delta = omega / 3 * (val_up + val_down + val_right - 3 * val - input[y][x]);
-            }
-
-            // side 2
-            else if (x == (width-1)) {
-                double val_up = output[(y - 1)][x];
-                double val_down = output[(y + 1)][x];
-                double val_left = output[(y)][(x - 1)];
-                delta = omega / 3 * (val_up + val_down + val_left - 3 * val - input[y][x]);
-            }
-
-            // side 3
-            else if (y == 0) {
-                double val_down = output[(y + 1)][x];
-                double val_left = output[(y)][(x - 1)];
-                double val_right = output[(y)][(x + 1)];
-                delta = omega / 3 * (val_down + val_left + val_right - 3 * val - input[y][x]);
-            }
-
-            // side 4
-            else if (y == (height-1)) {
-                double val_up = output[(y - 1)][x];
-                double val_left = output[(y)][(x - 1)];
-                double val_right = output[(y)][(x + 1)];
-                delta = omega / 3 * (val_up + val_left + val_right - 3 * val - input[y][x]);
-            }
-
-            // all other non-boundary points
-            else {
-                double val_up = output[(y - 1)][x];
-                double val_down = output[(y + 1)][x];
-                double val_left = output[(y)][(x - 1)];
-                double val_right = output[(y)][(x + 1)];
-                delta = omega / 4 * (val_up + val_down + val_left + val_right - 4 * val - input[y][x]);
-            }
-
-            // get the minimum max_update as the convergance indicator
+            // get max update
             double abs_delta = fabs(delta);
             if (abs_delta > max_update) {
                 max_update = abs_delta;
@@ -93,6 +36,7 @@ double patial_relax(std::vector<std::vector<double>> &output, std::vector<std::v
 
             // increment the value by delta
             output[y][x] += delta;
+
         }
     }
 
