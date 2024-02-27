@@ -4,6 +4,9 @@
 
 This project implements the method described in the paper [Poisson-Based Continuous Surface Generation for Goal-Based Caustics](http://www.cs.columbia.edu/~yonghao/tog14/yue-continuous-caustics-lens.pdf).
 
+Result simulated with Blender using LuxRender:
+![Alt text](./doc/lena_sim.gif)
+
 ## Features
 
 - Implementation of the Poisson-based continuous surface generation algorithm.
@@ -143,9 +146,17 @@ transport from an image to an almost uniform distribution:
 
 ![Alt text](./doc/lena_parameterization.gif)
 
+## Prototype
+
+Machined acrylic prototype:
+![Machined acrylic lens](./doc/1708943955018.jpg)
+
+Shadow of the machined prototype:
+![Resulting Caustic Lens](./doc/1708944014876.jpg)
+
 ## Future plans
 
-1. Non-zero divergance for the height solver -> this will allow more freedom in the lens design
+1. Non-zero divergence for the height solver -> this will allow more freedom in the lens design
 2. reflective caustics -> is currently not that usefull because of the limited freedom in the height solver
 3. circular lenses
 4. create portable builds for Win/Linux in releases

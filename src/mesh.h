@@ -44,8 +44,6 @@ class Mesh {
 
         double find_min_delta_t(const std::vector<std::vector<double>>& velocities);
 
-        std::vector<std::vector<double>> circular_transform(std::vector<std::vector<double>> input_points);
-
     public:
         Mesh(double width, double height, int res_x, int res_y);
         ~Mesh();
@@ -74,11 +72,16 @@ class Mesh {
         void set_source_heights(std::vector<double> heights);
         void set_target_heights(std::vector<double> heights);
 
-        void save_solid_obj(double thickness, const std::string& filename);
+        void save_solid_obj_target(double thickness, const std::string& filename);
+        void save_solid_obj_source(double thickness, const std::string& filename);
 
         void calculate_inverted_transport_map(std::string filename, double stroke_width);
 
         void build_target_dual_cells_circ(std::vector<std::vector<point_t>> &cells);
+
+        std::vector<point_t> circular_transform(std::vector<std::vector<double>> &input_points);
+
+        void build_circular_target_dual_cells(std::vector<std::vector<point_t>> &cells);
 };
 
 #endif

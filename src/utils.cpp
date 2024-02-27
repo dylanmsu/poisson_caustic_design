@@ -26,8 +26,10 @@ void subtractAverage(std::vector<std::vector<double>>& raster) {
 
     for (const auto& row : raster) {
         for (double value : row) {
-            sum += value;
-            count++;
+            if (!std::isnan(value)) {
+                sum += value;
+                count++;
+            }
         }
     }
 
@@ -36,7 +38,11 @@ void subtractAverage(std::vector<std::vector<double>>& raster) {
     // Subtract the average from each element of the raster
     for (auto& row : raster) {
         std::transform(row.begin(), row.end(), row.begin(), [average](double value) {
-            return value - average;
+            if (std::isnan(value)) {
+                return value;
+            } else {
+                return value - average;
+            }
         });
     }
 }
@@ -51,8 +57,10 @@ std::vector<std::vector<double>> scale_matrix_proportional(const std::vector<std
 
     for (size_t i = 0; i < rows; ++i) {
         for (size_t j = 0; j < cols; ++j) {
-            matrix_min = std::min(matrix_min, matrix[i][j]);
-            matrix_max = std::max(matrix_max, matrix[i][j]);
+            if (!std::isnan(matrix[i][j])) {
+                matrix_min = std::min(matrix_min, matrix[i][j]);
+                matrix_max = std::max(matrix_max, matrix[i][j]);
+            }
         }
     }
 
@@ -61,7 +69,9 @@ std::vector<std::vector<double>> scale_matrix_proportional(const std::vector<std
 
     for (size_t i = 0; i < rows; ++i) {
         for (size_t j = 0; j < cols; ++j) {
-            scaled_matrix[i][j] = min_value + (max_value - min_value) * (matrix[i][j] - matrix_min) / (matrix_max - matrix_min);
+            if (!std::isnan(matrix[i][j])) {
+                scaled_matrix[i][j] = min_value + (max_value - min_value) * (matrix[i][j] - matrix_min) / (matrix_max - matrix_min);
+            }
         }
     }
 
@@ -119,14 +129,25 @@ std::vector<std::vector<double>> calculate_divergence(const std::vector<std::vec
     for (int y = 0; y < ny; ++y) {
         for (int x = 0; x < nx; ++x) {
             // Forward and backward differences for divergence with boundary checks
-            double div_x = (x < nx - 1) ? (Nx[y][x + 1] - Nx[y][x]) : 0.0;
-            double div_y = (y < ny - 1) ? (Ny[y + 1][x] - Ny[y][x]) : 0.0;
+            double div_x = 0.0;
+            double div_y = 0.0;
+
+            // Check if neighboring cells are valid (not NaN) before calculating differences
+            if (x < nx - 1 && !std::isnan(Nx[y][x]) && !std::isnan(Nx[y][x + 1])) {
+                div_x = Nx[y][x + 1] - Nx[y][x];
+            }
+
+            if (y < ny - 1 && !std::isnan(Ny[y][x]) && !std::isnan(Ny[y + 1][x])) {
+                div_y = Ny[y + 1][x] - Ny[y][x];
+            }
 
             // Accumulate the divergence
-            if (x == 0 || x == nx - 1 || y == 0 || y == ny - 1) {
-                divergence[y][x] = 0.0;
+            if (std::isnan(Nx[y][x]) || std::isnan(Ny[y][x]) || std::isnan(div_x) || std::isnan(div_y)) {
+                divergence[y][x] = std::numeric_limits<double>::quiet_NaN(); // Set divergence to NaN if any neighbor is NaN
+            } else if (x == 0 || x == nx - 1 || y == 0 || y == ny - 1) {
+                divergence[y][x] = 0.0; // Set divergence to 0 for boundary cells
             } else {
-                divergence[y][x] = div_x + div_y;
+                divergence[y][x] = div_x + div_y; // Calculate and set divergence
             }
         }
     }
