@@ -12,6 +12,7 @@
 #include <unordered_set>
 
 #include "bvh.h"
+#include "utils.h"
 
 typedef std::vector<double> point_t;
 
