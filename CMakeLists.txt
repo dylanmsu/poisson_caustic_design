@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 cmake_policy(VERSION 3.12)
 
-project(YourProjectName)
+project(CausticEngineering)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -40,11 +40,12 @@ target_link_libraries(CausticEngineering PUBLIC ${X11_LIBRARIES})
 # Install the executable
 install(TARGETS CausticEngineering DESTINATION bin)
 
-# Set CPack options
-set(CPACK_PACKAGE_NAME "CausticEngineering")
-set(CPACK_PACKAGE_VERSION "1.0.0")
-set(CPACK_GENERATOR "ZIP")  # Generate a ZIP archive
-include(CPack)
-
 # Include zlib and libpng libraries in the ZIP archive
 install(FILES ${ZLIB_LIBRARIES} ${PNG_LIBRARIES} DESTINATION lib)
+
+include(InstallRequiredSystemLibraries)
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+set(CPACK_PACKAGE_VERSION_MAJOR "${Tutorial_VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${Tutorial_VERSION_MINOR}")
+set(CPACK_SOURCE_GENERATOR "TGZ")
+include(CPack)

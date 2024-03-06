@@ -11,19 +11,35 @@ double patial_relax(std::vector<std::vector<double>> &output, std::vector<std::v
     int x, y;
     double max_update = 0.0;
 
+    // Precompute width and height - 1
+    int width_minus_1 = width - 1;
+    int height_minus_1 = height - 1;
+
     for (y = start_y; y < end_y; y++) {
         for (x = start_x; x < end_x; x++) {
             double val = output[y][x];
             double delta;
 
-            double neighbor_sum = 0.0f;
-            double neighbor_cnt = 0.0f;
+            double neighbor_sum = 0.0;
+            double neighbor_cnt = 0.0;
 
-            // boundary conditions
-            if (x != 0 && !std::isnan(input[y][x - 1]))             {neighbor_cnt += 1.0f; neighbor_sum += output[y][x - 1];}
-            if (y != 0 && !std::isnan(input[y - 1][x]))             {neighbor_cnt += 1.0f; neighbor_sum += output[y - 1][x];}
-            if (x != (width-1) && !std::isnan(input[y][x + 1]))     {neighbor_cnt += 1.0f; neighbor_sum += output[y][x + 1];}
-            if (y != (height-1) && !std::isnan(input[y + 1][x]))    {neighbor_cnt += 1.0f; neighbor_sum += output[y + 1][x];}
+            // Neumann boundary conditions for domain edges and NAN values
+            if (x != 0 && !std::isnan(input[y][x - 1])) {
+                neighbor_cnt += 1.0;
+                neighbor_sum += output[y][x - 1];
+            }
+            if (y != 0 && !std::isnan(input[y - 1][x])) {
+                neighbor_cnt += 1.0;
+                neighbor_sum += output[y - 1][x];
+            }
+            if (x != width_minus_1 && !std::isnan(input[y][x + 1])) {
+                neighbor_cnt += 1.0;
+                neighbor_sum += output[y][x + 1];
+            }
+            if (y != height_minus_1 && !std::isnan(input[y + 1][x])) {
+                neighbor_cnt += 1.0;
+                neighbor_sum += output[y + 1][x];
+            }
 
             // calculate delta
             delta = omega / neighbor_cnt * (neighbor_sum - neighbor_cnt * val - input[y][x]);
@@ -36,7 +52,6 @@ double patial_relax(std::vector<std::vector<double>> &output, std::vector<std::v
 
             // increment the value by delta
             output[y][x] += delta;
-
         }
     }
 
@@ -80,7 +95,7 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
             mtx.unlock();
         };
 
-        // Create tasks to process the grid in chunks
+        // Create tasks to process the grid in equal chunks
         for (int y = 0; y < num_segments_y; y++) {
             for (int x = 0; x < num_segments_x; x++) {
                 threads[num_segments_y * x + y] = std::thread(process_grid_part, 
@@ -96,11 +111,13 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
             threads[i].join();
         }//*/
 
+        // print progress to terminal
         if (i % 100 == 0) {
             printf("\33[2K\r");
             printf("Solver max_update: %.5e, convergence at %.2e\r", max_update, convergence_threshold);
         }
 
+        // check for convergance
         if (max_update < convergence_threshold) {
             printf("Convergence reached at iteration %d with max_update of %.5e\n", i, max_update);
             break;
