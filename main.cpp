@@ -126,14 +126,12 @@ std::unordered_map<std::string, std::string> parse_arguments(int argc, char cons
 
 int main(int argc, char const *argv[])
 {
+    // Parse user arguments
     std::unordered_map<std::string, std::string> args = parse_arguments(argc, argv);
-
-    printf("loading image\r\n");
 
     // Load image
     cimg_library::CImg<unsigned char> image(args["intput_png"].c_str());
-
-    double aspect_ratio = image.width() / image.height();
+    double aspect_ratio = (double)image.width() / (double)image.height();
 
     // Print parsed arguments
     /*for (const auto& pair : args) {
@@ -175,6 +173,8 @@ int main(int argc, char const *argv[])
     printf("converted image to grid\r\n");
 
     pixels = scale_matrix_proportional(pixels, 0, 1.0f);
+
+    printf("scaled\r\n");
 
     Mesh mesh(width, height, mesh_res_x, mesh_res_y);
 
@@ -224,7 +224,7 @@ int main(int argc, char const *argv[])
         for (int i=0; i<mesh.target_points.size(); i++) {
             gradient[0].push_back(bilinearInterpolation(grad[0], mesh.target_points[i][0] * ((resolution_x - 2) / mesh.width), mesh.target_points[i][1] * ((resolution_y - 2) / mesh.height)));
             gradient[1].push_back(bilinearInterpolation(grad[1], mesh.target_points[i][0] * ((resolution_x - 2) / mesh.width), mesh.target_points[i][1] * ((resolution_y - 2) / mesh.height)));
-        }*/
+        }//*/
 
         // integrate the gradient grid into the dual cells of the vertices (slower but better contrast)
         std::vector<std::vector<double>> gradient = integrate_cell_gradients(grad, target_cells, resolution_x, resolution_y, width, height);
@@ -237,7 +237,7 @@ int main(int argc, char const *argv[])
 
         // export parameterization
         std::string svg_filename = "../parameterization.svg";
-        mesh.export_paramererization_to_svg(svg_filename, 1.0f);
+        mesh.export_paramererization_to_svg(svg_filename, 0.1f);
 
         // export inverted transport map (can be used for dithering)
         mesh.build_bvh(1, 30);
@@ -270,7 +270,7 @@ int main(int argc, char const *argv[])
         std::vector<std::vector<double>> norm_x = mesh.interpolate_raster(normals[0], resolution_x, resolution_y);
         std::vector<std::vector<double>> norm_y = mesh.interpolate_raster(normals[1], resolution_x, resolution_y);
 
-        std::vector<std::vector<double>> divergance = calculate_divergence(norm_x, norm_y, resolution_x, resolution_y);
+        std::vector<std::vector<double>> divergence = calculate_divergence(norm_x, norm_y, resolution_x, resolution_y);
     
         std::vector<std::vector<double>> h;
         for (int i = 0; i < resolution_y; ++i) {
@@ -281,8 +281,8 @@ int main(int argc, char const *argv[])
             h.push_back(row);
         }
 
-        subtractAverage(divergance);
-        poisson_solver(divergance, h, resolution_x, resolution_y, 100000, 0.0000001, 16);
+        subtractAverage(divergence);
+        poisson_solver(divergence, h, resolution_x, resolution_y, 100000, 0.0000001, 16);
 
         double epsilon = std::numeric_limits<double>::epsilon();
 
@@ -312,7 +312,7 @@ int main(int argc, char const *argv[])
         std::vector<std::vector<double>> norm_x = mesh.interpolate_raster(normals[0], resolution_x, resolution_y);
         std::vector<std::vector<double>> norm_y = mesh.interpolate_raster(normals[1], resolution_x, resolution_y);
 
-        std::vector<std::vector<double>> divergance = calculate_divergence(norm_x, norm_y, resolution_x, resolution_y);
+        std::vector<std::vector<double>> divergence = calculate_divergence(norm_x, norm_y, resolution_x, resolution_y);
     
         std::vector<std::vector<double>> h;
         for (int i = 0; i < resolution_x; ++i) {
@@ -323,8 +323,8 @@ int main(int argc, char const *argv[])
             h.push_back(row);
         }
 
-        subtractAverage(divergance);
-        poisson_solver(divergance, h, resolution_x, resolution_y, 100000, 1e-8, 16);
+        subtractAverage(divergence);
+        poisson_solver(divergence, h, resolution_x, resolution_y, 100000, 1e-8, 16);
 
         std::vector<double> interpolated_h;
         for (int i=0; i<mesh.target_points.size(); i++) {
