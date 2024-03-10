@@ -274,11 +274,20 @@ std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<doub
     std::vector<double> x(res_x);
     std::vector<double> y(res_y);
 
-    for (int i = 0; i < res_x; ++i)
-        x[i] = static_cast<double>(i) * width / (res_x - 1);
+    double epsilon = std::numeric_limits<double>::epsilon();
 
-    for (int i = 0; i < res_y; ++i)
-        y[i] = static_cast<double>(i) * height / (res_y - 1);
+    for (int i = 0; i < res_x; ++i) {
+        //x[i] = ((static_cast<double>(i) + 1) / res_x) * width - (1 * width) / (res_x);
+        x[i] = static_cast<double>(i) * (width) / (res_x - 1);
+        //x[i] = (static_cast<double>(i) + 1) * width / (res_x);
+        //x[i] = x[i] - 0.000001 / res_x;
+    }
+
+    for (int i = 0; i < res_y; ++i) {
+        //y[i] = static_cast<double>(i) * height / (res_y - 1);
+        y[i] = static_cast<double>(i) * (height) / (res_y - 1);
+        //y[i] = y[i] - 0.000001 / res_y;
+    }
 
     // Generate raster
     std::vector<std::vector<double>> raster;
@@ -378,12 +387,12 @@ double Mesh::find_min_delta_t(const std::vector<std::vector<double>>& velocities
     for (int tri=0; tri<this->triangles.size(); tri++) {
         std::vector<std::vector<double>> t_values;
         // try every combination
-        //t_values.push_back(find_t(target_points[triangles[tri][0]], target_points[triangles[tri][1]], target_points[triangles[tri][2]], velocities[triangles[tri][0]], velocities[triangles[tri][1]], velocities[triangles[tri][2]]));
-        //t_values.push_back(find_t(target_points[triangles[tri][1]], target_points[triangles[tri][0]], target_points[triangles[tri][2]], velocities[triangles[tri][1]], velocities[triangles[tri][0]], velocities[triangles[tri][2]]));
+        t_values.push_back(find_t(target_points[triangles[tri][0]], target_points[triangles[tri][1]], target_points[triangles[tri][2]], velocities[triangles[tri][0]], velocities[triangles[tri][1]], velocities[triangles[tri][2]]));
+        t_values.push_back(find_t(target_points[triangles[tri][1]], target_points[triangles[tri][0]], target_points[triangles[tri][2]], velocities[triangles[tri][1]], velocities[triangles[tri][0]], velocities[triangles[tri][2]]));
         t_values.push_back(find_t(target_points[triangles[tri][2]], target_points[triangles[tri][0]], target_points[triangles[tri][1]], velocities[triangles[tri][2]], velocities[triangles[tri][0]], velocities[triangles[tri][1]]));
-        //t_values.push_back(find_t(target_points[triangles[tri][0]], target_points[triangles[tri][2]], target_points[triangles[tri][1]], velocities[triangles[tri][0]], velocities[triangles[tri][2]], velocities[triangles[tri][1]]));
-        //t_values.push_back(find_t(target_points[triangles[tri][2]], target_points[triangles[tri][1]], target_points[triangles[tri][0]], velocities[triangles[tri][2]], velocities[triangles[tri][1]], velocities[triangles[tri][0]]));
-        //t_values.push_back(find_t(target_points[triangles[tri][1]], target_points[triangles[tri][2]], target_points[triangles[tri][0]], velocities[triangles[tri][1]], velocities[triangles[tri][2]], velocities[triangles[tri][0]]));
+        t_values.push_back(find_t(target_points[triangles[tri][0]], target_points[triangles[tri][2]], target_points[triangles[tri][1]], velocities[triangles[tri][0]], velocities[triangles[tri][2]], velocities[triangles[tri][1]]));
+        t_values.push_back(find_t(target_points[triangles[tri][2]], target_points[triangles[tri][1]], target_points[triangles[tri][0]], velocities[triangles[tri][2]], velocities[triangles[tri][1]], velocities[triangles[tri][0]]));
+        t_values.push_back(find_t(target_points[triangles[tri][1]], target_points[triangles[tri][2]], target_points[triangles[tri][0]], velocities[triangles[tri][1]], velocities[triangles[tri][2]], velocities[triangles[tri][0]]));
 
         // Ignore negative or zero values
         std::vector<double> valid_t_values;
@@ -461,6 +470,7 @@ double Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>
     }*/
 
     double min_t = find_min_delta_t(velocities);
+    //double min_t = 1.0f/1600.0f;
     //std::cout << "min_t = " << min_t << std::endl;
 
     // Move vertices along the gradient
@@ -470,6 +480,68 @@ double Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>
     }
 
     return min_t;
+}
+
+void Mesh::laplacian_smoothing(std::vector<std::vector<double>> &points, double smoothing_factor) {
+    std::vector<std::vector<double>> points_copy;
+    for (int i = 0; i < points.size(); i++) {
+        int y = i / res_x;
+        int x = i % res_x;
+
+        std::vector<double> new_point = points[y * res_x + x];
+
+        if (x == 0 && y == 0) {
+            points_copy.push_back(points[i]);
+        } else if (x == 0 && y == res_y - 1) {
+            points_copy.push_back(points[i]);
+        } else if (x == res_x - 1 && y == 0) {
+            points_copy.push_back(points[i]);
+        } else if (x == res_x - 1 && y == res_y - 1) {
+            points_copy.push_back(points[i]);
+        } else if (x == 0 && (y != 0 && y != res_y - 1)) {
+            new_point[1] = 0.0f;
+            new_point[1] += points[(y - 1) * res_x + x][1];
+            new_point[1] += points[(y + 1) * res_x + x][1];
+            new_point[1] /= 2.0f;
+            points_copy.push_back(new_point);
+        } else if (x == res_x - 1 && (y != 0 && y != res_y - 1)) {
+            new_point[1] = 0.0f;
+            new_point[1] += points[(y - 1) * res_x + x][1];
+            new_point[1] += points[(y + 1) * res_x + x][1];
+            new_point[1] /= 2.0f;
+            points_copy.push_back(new_point);
+        } else if (y == 0 && (x != 0 && x != res_x - 1)) {
+            new_point[0] = 0.0f;
+            new_point[0] += points[y * res_x + (x - 1)][0];
+            new_point[0] += points[y * res_x + (x + 1)][0];
+            new_point[0] /= 2.0f;
+            points_copy.push_back(new_point);
+        } else if (y == res_y - 1 && (x != 0 && x != res_x - 1)) {
+            new_point[0] = 0.0f;
+            new_point[0] += points[y * res_x + (x - 1)][0];
+            new_point[0] += points[y * res_x + (x + 1)][0];
+            new_point[0] /= 2.0f;
+            points_copy.push_back(new_point);
+        } else if (x != 0 && x != res_x - 1 && y != 0 && y != res_y - 1) {
+            new_point[0] = 0.0f;
+            new_point[1] = 0.0f;
+
+            new_point[0] += points[y * res_x + (x - 1)][0];
+            new_point[0] += points[y * res_x + (x + 1)][0];
+            new_point[1] += points[(y - 1) * res_x + x][1];
+            new_point[1] += points[(y + 1) * res_x + x][1];
+
+            new_point[0] /= 2.0f;
+            new_point[1] /= 2.0f;
+
+            points_copy.push_back(new_point);
+        }
+    }
+
+    for (int i = 0; i < points.size(); i++) {
+        points[i][0] = points_copy[i][0] * smoothing_factor + points[i][0] * (1.0f - smoothing_factor);
+        points[i][1] = points_copy[i][1] * smoothing_factor + points[i][1] * (1.0f - smoothing_factor);
+    }
 }
 
 void Mesh::export_paramererization_to_svg(std::string filename, double stroke_width) {
