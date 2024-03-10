@@ -83,6 +83,8 @@ class Mesh {
         std::vector<point_t> circular_transform(std::vector<std::vector<double>> &input_points);
 
         void build_circular_target_dual_cells(std::vector<std::vector<point_t>> &cells);
+
+        void laplacian_smoothing(std::vector<std::vector<double>> &points, double smoothing_factor);
 };
 
 #endif

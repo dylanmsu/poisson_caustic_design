@@ -50,16 +50,28 @@ void save_grid_as_image(const std::vector<std::vector<double>>& img, int resolut
     image.save(filename.c_str());
 }
 
+void clamp(int &value, int min, int max) {
+    value = std::max(std::min(value, max), min);
+}
+
 // Bilinear interpolation function
 double bilinearInterpolation(const std::vector<std::vector<double>>& image, double x, double y) {
-    int x0 = static_cast<int>(x);  // Top-left corner
-    int y0 = static_cast<int>(y);
-    int x1 = x0 + 1;  // Top-right corner
-    int y1 = y0 + 1;
+    int x0 = floor(x);
+    int y0 = floor(y);
+    int x1 = ceil(x);
+    int y1 = ceil(y);
+
+    clamp(x0, 0, image[0].size() - 1);
+    clamp(x1, 0, image[0].size() - 1);
+    clamp(y0, 0, image[0].size() - 1);
+    clamp(y1, 0, image[0].size() - 1);
 
     // Check if the point is outside the image bounds
     if (x0 < 0 || y0 < 0 || x1 >= image[0].size() || y1 >= image.size()) {
-        // Handle out-of-bounds condition (you can choose to return a default value or throw an exception)
+        printf("interpolation out of range: x: %f, y: %f\r\n", x, y);
+
+        printf("x0: %i, y0: %i, x1: %i, y1: %i\r\n", x0, y0, x1, y1);
+        // Handle out-of-bounds condition
         return 0.0;  // Default value
     }
 
@@ -192,7 +204,7 @@ int main(int argc, char const *argv[])
     //std::vector<double> target_areas = get_target_areas(pixels, circ_target_cells, resolution_x, resolution_y, width, height);
     std::vector<double> target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);
     
-    for (int itr=0; itr<500; itr++) {
+    for (int itr=0; itr<100; itr++) {
         printf("starting iteration %i\r\n", itr);
         
         // build median dual mesh of the updated parameterization
@@ -230,18 +242,21 @@ int main(int argc, char const *argv[])
         std::vector<std::vector<double>> gradient = integrate_cell_gradients(grad, target_cells, resolution_x, resolution_y, width, height);
 
         // step the mesh vertices in the direction of their gradient vector
-        double min_step = mesh.step_grid(gradient[0], gradient[1], 0.5);
+        double min_step = mesh.step_grid(gradient[0], gradient[1], 0.95f);
+
+        mesh.laplacian_smoothing(mesh.target_points, min_step*(resolution_x/width));
+
         printf("stepped grid, now exporting visualizations\r\n");
 
         // iteration done, exporting visualizations:
 
         // export parameterization
-        std::string svg_filename = "../parameterization.svg";
-        mesh.export_paramererization_to_svg(svg_filename, 0.1f);
+        //std::string svg_filename = "../parameterization.svg";
+        //mesh.export_paramererization_to_svg(svg_filename, 0.1f);
 
         // export inverted transport map (can be used for dithering)
-        mesh.build_bvh(1, 30);
-        mesh.calculate_inverted_transport_map("../inverted.svg", 1.0f);
+        //mesh.build_bvh(1, 30);
+        //mesh.calculate_inverted_transport_map("../inverted.svg", 1.0f);
 
         //std::string png_filename = "../param/interpolated_" + std::to_string(itr) + "_" + std::to_string(min_step) + ".png";
         std::string png_filename = "../interpolated_param.png";
@@ -270,6 +285,9 @@ int main(int argc, char const *argv[])
         std::vector<std::vector<double>> norm_x = mesh.interpolate_raster(normals[0], resolution_x, resolution_y);
         std::vector<std::vector<double>> norm_y = mesh.interpolate_raster(normals[1], resolution_x, resolution_y);
 
+        //save_grid_as_image(scale_matrix_proportional(norm_x, 0, 1.0f), resolution_x, resolution_y, "../norm_x.png");
+        //save_grid_as_image(scale_matrix_proportional(norm_y, 0, 1.0f), resolution_x, resolution_y, "../norm_y.png");
+
         std::vector<std::vector<double>> divergence = calculate_divergence(norm_x, norm_y, resolution_x, resolution_y);
     
         std::vector<std::vector<double>> h;
@@ -284,16 +302,19 @@ int main(int argc, char const *argv[])
         subtractAverage(divergence);
         poisson_solver(divergence, h, resolution_x, resolution_y, 100000, 0.0000001, 16);
 
-        double epsilon = std::numeric_limits<double>::epsilon();
-
         std::vector<double> interpolated_h;
         for (int i=0; i<mesh.source_points.size(); i++) {
-            interpolated_h.push_back(bilinearInterpolation(h, mesh.source_points[i][0] * ((resolution_x - 1 - 1.0f/resolution_x) / mesh.width), mesh.source_points[i][1] * ((resolution_y - 1 - 1.0f/resolution_y) / mesh.height)));
+            interpolated_h.push_back(bilinearInterpolation(h, mesh.source_points[i][0] * ((resolution_x) / mesh.width), mesh.source_points[i][1] * ((resolution_y) / mesh.height)));
         }
+
+        save_grid_as_image(scale_matrix_proportional(h, 0, 1.0f), resolution_x, resolution_y, "../h.png");
+        save_grid_as_image(scale_matrix_proportional(divergence, 0, 1.0f), resolution_x, resolution_y, "../div.png");
         
-        //std::vector<std::vector<std::vector<double>>> source_cells;
-        //mesh.build_source_dual_cells(source_cells);
-        //std::vector<double> interpolated_h = integrate_grid_into_cells(h, source_cells, resolution_x, resolution_y, width, height);
+        /*
+        std::vector<std::vector<std::vector<double>>> source_cells;
+        mesh.build_source_dual_cells(source_cells);
+        std::vector<double> interpolated_h = integrate_grid_into_cells(h, source_cells, resolution_x, resolution_y, width, height);
+        */
 
         mesh.set_source_heights(interpolated_h);
     }
@@ -326,9 +347,12 @@ int main(int argc, char const *argv[])
         subtractAverage(divergence);
         poisson_solver(divergence, h, resolution_x, resolution_y, 100000, 1e-8, 16);
 
+        save_grid_as_image(scale_matrix_proportional(h, 0, 1.0f), resolution_x, resolution_y, "../h.png");
+        save_grid_as_image(scale_matrix_proportional(divergence, 0, 1.0f), resolution_x, resolution_y, "../div.png");
+
         std::vector<double> interpolated_h;
         for (int i=0; i<mesh.target_points.size(); i++) {
-            interpolated_h.push_back(bilinearInterpolation(h, mesh.target_points[i][0] * ((resolution_x - 2) / mesh.width), mesh.target_points[i][1] * ((resolution_y - 2) / mesh.height)));
+            interpolated_h.push_back(bilinearInterpolation(h, mesh.target_points[i][0] * ((resolution_x) / mesh.width)-1, mesh.target_points[i][1] * ((resolution_y) / mesh.height))-1);
         }
 
         mesh.set_target_heights(interpolated_h);

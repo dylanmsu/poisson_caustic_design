@@ -8,11 +8,11 @@ std::vector<std::vector<std::vector<double>>> calculate_gradient(const std::vect
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            // Calculate x gradient
-            gradient3D[0][y][x] = (grid[y][std::min(x + 1, width - 1)] - grid[y][std::max(x - 1, 0)]) / 2.0;
+            // Calculate x gradient (zero for Neumann on vertical boundaries)
+            gradient3D[0][y][x] = (x == 0 || x == width - 1) ? 0.0 : (grid[y][std::min(x + 1, width - 1)] - grid[y][std::max(x - 1, 0)]) / 2.0;
 
-            // Calculate y gradient
-            gradient3D[1][y][x] = (grid[std::min(y + 1, height - 1)][x] - grid[std::max(y - 1, 0)][x]) / 2.0;
+            // Calculate y gradient (zero for Neumann on horizontal boundaries)
+            gradient3D[1][y][x] = (y == 0 || y == height - 1) ? 0.0 : (grid[std::min(y + 1, height - 1)][x] - grid[std::max(y - 1, 0)][x]) / 2.0;
         }
     }
 
@@ -135,7 +135,7 @@ void export_cells_as_svg(std::vector<std::vector<std::vector<double>>> cells, st
     svg_file.close();
 }
 
-std::vector<std::vector<double>> calculate_divergence(const std::vector<std::vector<double>>& Nx, const std::vector<std::vector<double>>& Ny, int nx, int ny) {
+/*std::vector<std::vector<double>> calculate_divergence(const std::vector<std::vector<double>>& Nx, const std::vector<std::vector<double>>& Ny, int nx, int ny) {
     std::vector<std::vector<double>> divergence(ny, std::vector<double>(nx, 0.0));
 
     for (int y = 0; y < ny; ++y) {
@@ -160,6 +160,25 @@ std::vector<std::vector<double>> calculate_divergence(const std::vector<std::vec
                 divergence[y][x] = 0.0; // Set divergence to 0 for boundary cells
             } else {
                 divergence[y][x] = div_x + div_y; // Calculate and set divergence
+            }
+        }
+    }
+
+    return divergence;
+}*/
+
+std::vector<std::vector<double>> calculate_divergence(const std::vector<std::vector<double>>& Nx, const std::vector<std::vector<double>>& Ny, int nx, int ny) {
+    std::vector<std::vector<double>> divergence(ny, std::vector<double>(nx, 0.0));
+
+    std::vector<std::vector<std::vector<double>>> grad_x = calculate_gradient(Nx);
+    std::vector<std::vector<std::vector<double>>> grad_y = calculate_gradient(Ny);
+
+    for (int y = 0; y < ny; ++y) {
+        for (int x = 0; x < nx; ++x) {
+            if (x == 0 || x == nx - 1 || y == 0 || y == ny - 1) {
+                divergence[y][x] = 0.0; // Set divergence to 0 for boundary cells
+            } else {
+                divergence[y][x] = grad_x[0][y][x] + grad_y[1][y][x]; // Calculate and set divergence
             }
         }
     }
