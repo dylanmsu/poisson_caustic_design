@@ -269,7 +269,9 @@ void Mesh::build_circular_target_dual_cells(std::vector<std::vector<point_t>> &c
 }
 
 // interpolate target mesh into a rectangular grid
-std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<double>& errors, int res_x, int res_y) {
+std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss) {
+    build_bvh(1, 30);
+    
     // Generate x and y vectors
     std::vector<double> x(res_x);
     std::vector<double> y(res_y);
@@ -308,7 +310,10 @@ std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<doub
                     vertex_values[1]*hit.barycentric_coords[1] + 
                     vertex_values[2]*hit.barycentric_coords[2];
                 row.push_back(interpolation);
+                triangle_miss = false;
             } else {
+                printf("interpolation miss!\r\n");
+                triangle_miss = true;
                 row.push_back(NAN);
             }
         }
@@ -405,19 +410,6 @@ double Mesh::find_min_delta_t(const std::vector<std::vector<double>>& velocities
                 valid_t_values.push_back(t_values[i][1]);
             }
         }
-        //printf("\r\n");
-
-        std::vector<std::vector<double>> triangle;
-        triangle.push_back(target_points[triangles[tri][0]]);
-        triangle.push_back(target_points[triangles[tri][1]]);
-        triangle.push_back(target_points[triangles[tri][2]]);
-        if (calculate_polygon_area_vec(triangle) <= 0.0f) {
-            printf("Triangle has negative area!\r\n");
-        }
-
-        //std::cout << valid_t_values.size() << std::endl;
-
-        //std::cout << "e" << std::endl;
 
         if (!valid_t_values.empty()) {
             min_t_values.push_back(*std::min_element(valid_t_values.begin(), valid_t_values.end()));
@@ -425,8 +417,6 @@ double Mesh::find_min_delta_t(const std::vector<std::vector<double>>& velocities
             min_t_values.push_back(std::numeric_limits<double>::infinity());
         }
     }
-
-    //std::cout << "f" << std::endl;
 
     // Calculate the minimum of the minimum delta_t values
     return *std::min_element(min_t_values.begin(), min_t_values.end());
@@ -500,27 +490,31 @@ void Mesh::laplacian_smoothing(std::vector<std::vector<double>> &points, double 
             points_copy.push_back(points[i]);
         } else if (x == 0 && (y != 0 && y != res_y - 1)) {
             new_point[1] = 0.0f;
-            new_point[1] += points[(y - 1) * res_x + x][1];
+            new_point[1] += points[y * res_x + (x + 1)][1];
             new_point[1] += points[(y + 1) * res_x + x][1];
-            new_point[1] /= 2.0f;
+            new_point[1] += points[(y - 1) * res_x + x][1];
+            new_point[1] /= 3.0f;
             points_copy.push_back(new_point);
         } else if (x == res_x - 1 && (y != 0 && y != res_y - 1)) {
             new_point[1] = 0.0f;
+            new_point[1] += points[y * res_x + (x - 1)][1];
             new_point[1] += points[(y - 1) * res_x + x][1];
             new_point[1] += points[(y + 1) * res_x + x][1];
-            new_point[1] /= 2.0f;
+            new_point[1] /= 3.0f;
             points_copy.push_back(new_point);
         } else if (y == 0 && (x != 0 && x != res_x - 1)) {
             new_point[0] = 0.0f;
             new_point[0] += points[y * res_x + (x - 1)][0];
             new_point[0] += points[y * res_x + (x + 1)][0];
-            new_point[0] /= 2.0f;
+            new_point[0] += points[(y + 1) * res_x + x][0];
+            new_point[0] /= 3.0f;
             points_copy.push_back(new_point);
         } else if (y == res_y - 1 && (x != 0 && x != res_x - 1)) {
             new_point[0] = 0.0f;
             new_point[0] += points[y * res_x + (x - 1)][0];
+            new_point[0] += points[(y - 1) * res_x + x][0];
             new_point[0] += points[y * res_x + (x + 1)][0];
-            new_point[0] /= 2.0f;
+            new_point[0] /= 3.0f;
             points_copy.push_back(new_point);
         } else if (x != 0 && x != res_x - 1 && y != 0 && y != res_y - 1) {
             new_point[0] = 0.0f;
@@ -528,11 +522,15 @@ void Mesh::laplacian_smoothing(std::vector<std::vector<double>> &points, double 
 
             new_point[0] += points[y * res_x + (x - 1)][0];
             new_point[0] += points[y * res_x + (x + 1)][0];
+            new_point[0] += points[(y - 1) * res_x + x][0];
+            new_point[0] += points[(y + 1) * res_x + x][0];
+            new_point[1] += points[y * res_x + (x - 1)][1];
+            new_point[1] += points[y * res_x + (x + 1)][1];
             new_point[1] += points[(y - 1) * res_x + x][1];
             new_point[1] += points[(y + 1) * res_x + x][1];
 
-            new_point[0] /= 2.0f;
-            new_point[1] /= 2.0f;
+            new_point[0] /= 4.0f;
+            new_point[1] /= 4.0f;
 
             points_copy.push_back(new_point);
         }
@@ -584,6 +582,7 @@ void normalize(std::vector<double> &vec) {
 std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal_len, double refractive_index) {
     std::vector<double> x_normals;
     std::vector<double> y_normals;
+    std::vector<double> z_normals;
 
     // n = (t - µi) / ||(t - µi)||
     // where:
@@ -600,7 +599,7 @@ std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal
         std::vector<double> transmitted = {
             this->source_points[i][0] - this->target_points[i][0],
             this->source_points[i][1] - this->target_points[i][1],
-            this->source_points[i][2] - this->target_points[i][2] + focal_len
+            this->source_points[i][2] + this->target_points[i][2] + focal_len
         };
 
         //std::vector<double> incident = {0.0f, 0.0f, 0.0f};
@@ -619,9 +618,10 @@ std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal
         // (t - µi) / ||(t - µi)||
         x_normals.push_back(x_normal / z_normal);
         y_normals.push_back(y_normal / z_normal);
+        z_normals.push_back(1.0f);
     }
 
-    return {x_normals, y_normals};
+    return {x_normals, y_normals, z_normals};
 }
 
 void Mesh::set_source_heights(std::vector<double> heights) {
@@ -642,4 +642,26 @@ void Mesh::save_solid_obj_source(double thickness, const std::string& filename) 
 
 void Mesh::save_solid_obj_target(double thickness, const std::string& filename) {
     save_solid_obj(this->target_points, this->source_points, this->triangles, thickness, this->width, this->height, this->res_x, this->res_y, filename);
+}
+
+std::vector<int> Mesh::get_vertex_neighbor_ids(int vertex_id) {
+    int y = vertex_id / res_x;
+    int x = vertex_id % res_x;
+
+    std::vector<int> neighbors;
+
+    if (x != 0) {
+        neighbors.push_back((y) * res_x + (x - 1));
+    }
+    if (y != 0) {
+        neighbors.push_back((y - 1) * res_x + (x));
+    }
+    if (x != res_x - 1) {
+        neighbors.push_back((y) * res_x + (x + 1));
+    }
+    if (y != res_y - 1) {
+        neighbors.push_back((y + 1) * res_x + (x));
+    }
+
+    return neighbors;
 }

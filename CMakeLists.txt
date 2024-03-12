@@ -14,6 +14,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include)  # Adjust the path as needed
 # Add your source files here
 set(SOURCE_FILES 
     main.cpp
+    src/caustic_design.cpp
     src/polygon_utils.cpp
     src/solver.cpp
     src/utils.cpp

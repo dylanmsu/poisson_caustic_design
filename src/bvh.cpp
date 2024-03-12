@@ -199,7 +199,17 @@ void Bvh::intersectNode(int nodeId, std::vector<double> &point, Hit &hit, bool &
     {
         if (is_inside_bbox(nodes[nodeId], point)) {
             for(int i=nodes[nodeId].first_face_id; i<nodes[nodeId].first_face_id + nodes[nodeId].nb_faces; ++i) {
-                std::vector<double> bary_coord = get_barycentric_coordinates(points[triangles[sorted_triangle_ids[i]][2]], points[triangles[sorted_triangle_ids[i]][1]], points[triangles[sorted_triangle_ids[i]][0]], point);
+                
+                std::vector<std::vector<double>> triangle;
+                triangle.push_back(points[triangles[sorted_triangle_ids[i]][0]]);
+                triangle.push_back(points[triangles[sorted_triangle_ids[i]][1]]);
+                triangle.push_back(points[triangles[sorted_triangle_ids[i]][2]]);
+                
+                if (calculate_polygon_area_vec(triangle) <= 0.0f) {
+                    printf("Triangle has negative area!\r\n");
+                }
+
+                std::vector<double> bary_coord = get_barycentric_coordinates(triangle[2], triangle[1], triangle[0], point);
                 double eps = 1e-10;
 
                 if ((bary_coord[0] >= -eps && bary_coord[1] >= -eps) && ((bary_coord[0] + bary_coord[1]) <= 1.0f + eps)) {
