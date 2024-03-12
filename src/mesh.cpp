@@ -325,6 +325,7 @@ std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<doub
 
 // exports the inverted transport map as svg (mesh where its density distrbution is dependent on the image intensity)
 void Mesh::calculate_inverted_transport_map(std::string filename, double stroke_width) {
+    mesh.build_bvh(1, 30);
     std::vector<std::vector<double>> inverted_points;
     for (int i=0; i<this->source_points.size(); ++i) {
         std::vector<double> point = this->source_points[i];

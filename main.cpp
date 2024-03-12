@@ -176,6 +176,7 @@ double perform_transport_iteration() {
     raster = mesh->interpolate_raster(errors, resolution_x, resolution_y, triangle_miss);
 
     if (triangle_miss) {
+        mesh->laplacian_smoothing(mesh->target_points, 0.1f);
         return NAN;
     }
 
@@ -200,6 +201,9 @@ double perform_transport_iteration() {
 
     // step the mesh vertices in the direction of their gradient vector
     min_step = mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.95f);
+
+    mesh->laplacian_smoothing(mesh->target_points, min_step*(resolution_x/width) / 2);
+    //mesh->laplacian_smoothing(mesh->target_points, 0.1f);
 
     return min_step*(resolution_x/width);
 }
@@ -274,29 +278,18 @@ int main(int argc, char const *argv[])
         
         double step_size = perform_transport_iteration();
 
-        if (std::isnan(step_size)) {
-            mesh->laplacian_smoothing(mesh->target_points, 0.1f);
-            break;
-        }
-
-        mesh->laplacian_smoothing(mesh->target_points, step_size / 2);
-        //mesh->laplacian_smoothing(mesh->target_points, 0.1f);
-
         // export dual cells as svg
         export_cells_as_svg(target_cells, scale_array_proportional(errors, 0.0f, 1.0f), "../cells.svg");
-
         save_grid_as_image(scale_matrix_proportional(raster, 0, 1.0f), resolution_x, resolution_y, "../raster.png");
         save_grid_as_image(scale_matrix_proportional(phi, 0, 1.0f), resolution_x, resolution_y, "../phi.png");
         save_grid_as_image(scale_matrix_proportional(gradient[0], 0, 1.0f), resolution_x, resolution_y, "../gradient_x.png");
         save_grid_as_image(scale_matrix_proportional(gradient[1], 0, 1.0f), resolution_x, resolution_y, "../gradient_y.png");
 
         // export parameterization
-        std::string svg_filename = "../parameterization.svg";
-        mesh->export_paramererization_to_svg(svg_filename, 1.0f);
+        mesh->export_paramererization_to_svg("../parameterization.svg", 1.0f);
 
         // export inverted transport map (can be used for dithering)
-        //mesh.build_bvh(1, 30);
-        //mesh.calculate_inverted_transport_map("../inverted.svg", 1.0f);
+        mesh->calculate_inverted_transport_map("../inverted.svg", 1.0f);
 
         printf("step_size = %f\r\n", step_size);
 
@@ -351,7 +344,6 @@ int main(int argc, char const *argv[])
         //mesh.build_source_dual_cells(source_cells);
         //std::vector<double> interpolated_h = integrate_grid_into_cells(h, source_cells, resolution_x, resolution_y, width, height);
         
-
         mesh->set_source_heights(interpolated_h);
     }
 
