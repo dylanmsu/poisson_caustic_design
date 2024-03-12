@@ -8,11 +8,11 @@ std::vector<std::vector<std::vector<double>>> calculate_gradient(const std::vect
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            // Calculate x gradient (zero for Neumann on vertical boundaries)
-            gradient3D[0][y][x] = (x == 0 || x == width - 1) ? 0.0 : (grid[y][std::min(x + 1, width - 1)] - grid[y][std::max(x - 1, 0)]) / 2.0;
+            // Calculate x gradient
+            gradient3D[0][y][x] = (grid[y][std::min(x + 1, width - 1)] - grid[y][std::max(x - 1, 0)]) / 2.0;
 
-            // Calculate y gradient (zero for Neumann on horizontal boundaries)
-            gradient3D[1][y][x] = (y == 0 || y == height - 1) ? 0.0 : (grid[std::min(y + 1, height - 1)][x] - grid[std::max(y - 1, 0)][x]) / 2.0;
+            // Calculate y gradient
+            gradient3D[1][y][x] = (grid[std::min(y + 1, height - 1)][x] - grid[std::max(y - 1, 0)][x]) / 2.0;
         }
     }
 

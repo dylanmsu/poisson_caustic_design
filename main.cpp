@@ -63,8 +63,8 @@ double bilinearInterpolation(const std::vector<std::vector<double>>& image, doub
 
     clamp(x0, 0, image[0].size() - 1);
     clamp(x1, 0, image[0].size() - 1);
-    clamp(y0, 0, image[0].size() - 1);
-    clamp(y1, 0, image[0].size() - 1);
+    clamp(y0, 0, image.size() - 1);
+    clamp(y1, 0, image.size() - 1);
 
     // Check if the point is outside the image bounds
     if (x0 < 0 || y0 < 0 || x1 >= image[0].size() || y1 >= image.size()) {
@@ -136,6 +136,74 @@ std::unordered_map<std::string, std::string> parse_arguments(int argc, char cons
     return args;
 }
 
+Mesh *mesh;
+std::vector<std::vector<double>> phi;
+std::vector<double> errors;
+std::vector<std::vector<std::vector<double>>> target_cells;
+std::vector<std::vector<std::vector<double>>> source_cells;
+std::vector<double> target_areas;
+std::vector<std::vector<double>> pixels;
+std::vector<std::vector<double>> raster;
+std::vector<std::vector<std::vector<double>>> gradient;
+
+int mesh_res_x;
+int mesh_res_y;
+
+int resolution_x;
+int resolution_y;
+
+double width;
+double height;
+
+double focal_l;
+double thickness;
+int nthreads;
+
+double perform_transport_iteration() {
+    std::vector<std::vector<double>> vertex_gradient;
+    double min_step;
+
+    // build median dual mesh of the updated parameterization
+    target_cells.clear();
+    mesh->build_target_dual_cells(target_cells);
+
+    // calculate difference D (interpretation of equation 2)
+    std::vector<double> source_areas = get_source_areas(target_cells);
+    calculate_errors(source_areas, target_areas, target_cells, errors);
+
+    // rasterize the mesh into a uniform rectangular matrix
+    bool triangle_miss = false;
+    raster = mesh->interpolate_raster(errors, resolution_x, resolution_y, triangle_miss);
+
+    if (triangle_miss) {
+        return NAN;
+    }
+
+    // solve the poisson equation 3 in the paper
+    subtractAverage(raster);
+    poisson_solver(raster, phi, resolution_x, resolution_y, 100000, 0.0000001, nthreads);
+
+    // calculate the gradient given by equation 4
+    gradient = calculate_gradient(phi);
+
+    // calculate the gradient vectors corresponding to each vertex in the mesh
+
+    // bilinear interpolating the gradients (negligibly faster, but gives lower contrast results)
+    /*std::vector<std::vector<double>> gradient(2);
+    for (int i=0; i<mesh.target_points.size(); i++) {
+        gradient[0].push_back(bilinearInterpolation(grad[0], mesh.target_points[i][0] * ((resolution_x - 2) / mesh.width), mesh.target_points[i][1] * ((resolution_y - 2) / mesh.height)));
+        gradient[1].push_back(bilinearInterpolation(grad[1], mesh.target_points[i][0] * ((resolution_x - 2) / mesh.width), mesh.target_points[i][1] * ((resolution_y - 2) / mesh.height)));
+    }//*/
+
+    // integrate the gradient grid into the dual cells of the vertices (slower but better contrast)
+    vertex_gradient = integrate_cell_gradients(gradient, target_cells, resolution_x, resolution_y, width, height);
+
+    // step the mesh vertices in the direction of their gradient vector
+    min_step = mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.95f);
+
+    return min_step*(resolution_x/width);
+}
+
 int main(int argc, char const *argv[])
 {
     // Parse user arguments
@@ -151,21 +219,20 @@ int main(int argc, char const *argv[])
         printf("Key: %s, Value: %s\r\n", pair.first.c_str(), pair.second.c_str());
     }*/
 
-    int mesh_res_x = atoi(args["res_w"].c_str());
-    int mesh_res_y = atoi(args["res_w"].c_str()) / aspect_ratio;
+    mesh_res_x = atoi(args["res_w"].c_str());
+    mesh_res_y = atoi(args["res_w"].c_str()) / aspect_ratio;
 
-    int resolution_x = 4*mesh_res_x;
-    int resolution_y = 4*mesh_res_y;
+    resolution_x = 4*mesh_res_x;
+    resolution_y = 4*mesh_res_y;
 
-    double width = std::stod(args["width"]);
-    double height = width / aspect_ratio;
+    width = std::stod(args["width"]);
+    height = width / aspect_ratio;
 
-    double focal_l = std::stod(args["focal_l"]);
+    focal_l = std::stod(args["focal_l"]);
 
-    double thickness = std::stod(args["thickness"]);
+    thickness = std::stod(args["thickness"]);
 
-    std::vector<std::vector<double>> phi;
-    std::vector<double> errors;
+    nthreads = atoi(args["max_threads"].c_str());
 
     phi.clear();
     for (int i = 0; i < resolution_y; ++i) {
@@ -188,88 +255,53 @@ int main(int argc, char const *argv[])
 
     printf("scaled\r\n");
 
-    Mesh mesh(width, height, mesh_res_x, mesh_res_y);
+    mesh = new Mesh(width, height, mesh_res_x, mesh_res_y);
 
     printf("generated mesh\r\n");
 
     //std::cout << "built mesh" << std::endl;
 
-    std::vector<std::vector<std::vector<double>>> target_cells;
-    std::vector<std::vector<std::vector<double>>> source_cells;
     //std::vector<std::vector<std::vector<double>>> circ_target_cells;
-    mesh.build_target_dual_cells(target_cells);
-    mesh.build_source_dual_cells(source_cells);
+    mesh->build_target_dual_cells(target_cells);
+    mesh->build_source_dual_cells(source_cells);
     //mesh.build_circular_target_dual_cells(circ_target_cells);
 
     //std::vector<double> target_areas = get_target_areas(pixels, circ_target_cells, resolution_x, resolution_y, width, height);
-    std::vector<double> target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);
+    target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);
     
     for (int itr=0; itr<100; itr++) {
         printf("starting iteration %i\r\n", itr);
         
-        // build median dual mesh of the updated parameterization
-        target_cells.clear();
-        mesh.build_target_dual_cells(target_cells);
+        double step_size = perform_transport_iteration();
 
-        // calculate difference D (interpretation of equation 2)
-        std::vector<double> source_areas = get_source_areas(target_cells);
-        calculate_errors(source_areas, target_areas, target_cells, errors);
+        if (std::isnan(step_size)) {
+            mesh->laplacian_smoothing(mesh->target_points, 0.1f);
+            break;
+        }
+
+        mesh->laplacian_smoothing(mesh->target_points, step_size / 2);
+        //mesh->laplacian_smoothing(mesh->target_points, 0.1f);
 
         // export dual cells as svg
         export_cells_as_svg(target_cells, scale_array_proportional(errors, 0.0f, 1.0f), "../cells.svg");
 
-        // rasterize the mesh into a uniform rectangular matrix
-        mesh.build_bvh(1, 30);
-        std::vector<std::vector<double>> raster = mesh.interpolate_raster(errors, resolution_x, resolution_y);
-
-        // solve the poisson equation 3 in the paper
-        subtractAverage(raster);
-        poisson_solver(raster, phi, resolution_x, resolution_y, 100000, 0.0000001, 16);
-
-        // calculate the gradient given by equation 4
-        std::vector<std::vector<std::vector<double>>> grad = calculate_gradient(phi);
-
-        // calculate the gradient vectors corresponding to each vertex in the mesh
-
-        // bilinear interpolating the gradients (negligibly faster, but gives lower contrast results)
-        /*std::vector<std::vector<double>> gradient(2);
-        for (int i=0; i<mesh.target_points.size(); i++) {
-            gradient[0].push_back(bilinearInterpolation(grad[0], mesh.target_points[i][0] * ((resolution_x - 2) / mesh.width), mesh.target_points[i][1] * ((resolution_y - 2) / mesh.height)));
-            gradient[1].push_back(bilinearInterpolation(grad[1], mesh.target_points[i][0] * ((resolution_x - 2) / mesh.width), mesh.target_points[i][1] * ((resolution_y - 2) / mesh.height)));
-        }//*/
-
-        // integrate the gradient grid into the dual cells of the vertices (slower but better contrast)
-        std::vector<std::vector<double>> gradient = integrate_cell_gradients(grad, target_cells, resolution_x, resolution_y, width, height);
-
-        // step the mesh vertices in the direction of their gradient vector
-        double min_step = mesh.step_grid(gradient[0], gradient[1], 0.95f);
-
-        mesh.laplacian_smoothing(mesh.target_points, min_step*(resolution_x/width));
-
-        printf("stepped grid, now exporting visualizations\r\n");
-
-        // iteration done, exporting visualizations:
+        save_grid_as_image(scale_matrix_proportional(raster, 0, 1.0f), resolution_x, resolution_y, "../raster.png");
+        save_grid_as_image(scale_matrix_proportional(phi, 0, 1.0f), resolution_x, resolution_y, "../phi.png");
+        save_grid_as_image(scale_matrix_proportional(gradient[0], 0, 1.0f), resolution_x, resolution_y, "../gradient_x.png");
+        save_grid_as_image(scale_matrix_proportional(gradient[1], 0, 1.0f), resolution_x, resolution_y, "../gradient_y.png");
 
         // export parameterization
-        //std::string svg_filename = "../parameterization.svg";
-        //mesh.export_paramererization_to_svg(svg_filename, 0.1f);
+        std::string svg_filename = "../parameterization.svg";
+        mesh->export_paramererization_to_svg(svg_filename, 1.0f);
 
         // export inverted transport map (can be used for dithering)
         //mesh.build_bvh(1, 30);
         //mesh.calculate_inverted_transport_map("../inverted.svg", 1.0f);
 
-        //std::string png_filename = "../param/interpolated_" + std::to_string(itr) + "_" + std::to_string(min_step) + ".png";
-        std::string png_filename = "../interpolated_param.png";
-        raster = scale_matrix_proportional(raster, 0, 1.0f);
-        save_grid_as_image(raster, resolution_x, resolution_y, png_filename);//*/
-
-        std::string phi_filename = "../phi.png";
-        save_grid_as_image(scale_matrix_proportional(phi, 0, 1.0f), resolution_x, resolution_y, phi_filename);//*/
-
-        printf("min_step = %f\r\n", min_step*(resolution_x/width));
+        printf("step_size = %f\r\n", step_size);
 
         // convergence treshold for the parameterization
-        if (min_step*(resolution_x/width) < 0.005) break;
+        if (step_size < 0.005) break;
     }
 
     printf("\033[0;32mTransport map solver done! Starting height solver.\033[0m\r\n");
@@ -279,11 +311,16 @@ int main(int argc, char const *argv[])
 
     // uses uniform grid as caustic surface
     for (int itr=0; itr<3; itr++) {
-        std::vector<std::vector<double>> normals = mesh.calculate_refractive_normals(resolution_x / width * focal_l, 1.49);
+        std::vector<std::vector<double>> normals = mesh->calculate_refractive_normals(resolution_x / width * focal_l, 1.49);
 
-        mesh.build_bvh(1, 30);
-        std::vector<std::vector<double>> norm_x = mesh.interpolate_raster(normals[0], resolution_x, resolution_y);
-        std::vector<std::vector<double>> norm_y = mesh.interpolate_raster(normals[1], resolution_x, resolution_y);
+        mesh->build_bvh(1, 30);
+        bool triangle_miss = false;
+        std::vector<std::vector<double>> norm_x = mesh->interpolate_raster(normals[0], resolution_x, resolution_y, triangle_miss);
+        std::vector<std::vector<double>> norm_y = mesh->interpolate_raster(normals[1], resolution_x, resolution_y, triangle_miss);
+
+        if (triangle_miss) {
+            break;
+        }
 
         //save_grid_as_image(scale_matrix_proportional(norm_x, 0, 1.0f), resolution_x, resolution_y, "../norm_x.png");
         //save_grid_as_image(scale_matrix_proportional(norm_y, 0, 1.0f), resolution_x, resolution_y, "../norm_y.png");
@@ -300,28 +337,27 @@ int main(int argc, char const *argv[])
         }
 
         subtractAverage(divergence);
-        poisson_solver(divergence, h, resolution_x, resolution_y, 100000, 0.0000001, 16);
+        poisson_solver(divergence, h, resolution_x, resolution_y, 100000, 0.0000001, nthreads);
 
         std::vector<double> interpolated_h;
-        for (int i=0; i<mesh.source_points.size(); i++) {
-            interpolated_h.push_back(bilinearInterpolation(h, mesh.source_points[i][0] * ((resolution_x) / mesh.width), mesh.source_points[i][1] * ((resolution_y) / mesh.height)));
+        for (int i=0; i<mesh->source_points.size(); i++) {
+            interpolated_h.push_back(bilinearInterpolation(h, mesh->source_points[i][0] * ((resolution_x) / mesh->width), mesh->source_points[i][1] * ((resolution_y) / mesh->height)));
         }
 
         save_grid_as_image(scale_matrix_proportional(h, 0, 1.0f), resolution_x, resolution_y, "../h.png");
         save_grid_as_image(scale_matrix_proportional(divergence, 0, 1.0f), resolution_x, resolution_y, "../div.png");
         
-        /*
-        std::vector<std::vector<std::vector<double>>> source_cells;
-        mesh.build_source_dual_cells(source_cells);
-        std::vector<double> interpolated_h = integrate_grid_into_cells(h, source_cells, resolution_x, resolution_y, width, height);
-        */
+        //std::vector<std::vector<std::vector<double>>> source_cells;
+        //mesh.build_source_dual_cells(source_cells);
+        //std::vector<double> interpolated_h = integrate_grid_into_cells(h, source_cells, resolution_x, resolution_y, width, height);
+        
 
-        mesh.set_source_heights(interpolated_h);
+        mesh->set_source_heights(interpolated_h);
     }
 
     printf("Height solver done! Exporting as solidified obj\r\n");
 
-    mesh.save_solid_obj_source(thickness, "../output.obj");
+    mesh->save_solid_obj_source(thickness, "../output.obj");
     
     //*/
 

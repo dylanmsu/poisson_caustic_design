@@ -29,9 +29,6 @@ struct HashPair {
 
 class Mesh {
     private:
-        int res_x;
-        int res_y;
-
         std::vector<std::vector<int>> triangles;
 
         std::unordered_map<int, std::vector<int>> vertex_to_triangles;
@@ -55,6 +52,9 @@ class Mesh {
         double width;
         double height;
 
+        int res_x;
+        int res_y;
+
         void export_to_svg(std::string filename, double stroke_width);
         void export_paramererization_to_svg(std::string filename, double stroke_width);
 
@@ -62,7 +62,7 @@ class Mesh {
         void build_target_dual_cells(std::vector<std::vector<point_t>> &cells);
         void build_source_dual_cells(std::vector<std::vector<point_t>> &cells);
 
-        std::vector<std::vector<double>> interpolate_raster(const std::vector<double>& errors, int res_x, int res_y);
+        std::vector<std::vector<double>> interpolate_raster(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss);
 
         double step_grid(const std::vector<double>& dfx, const std::vector<double>& dfy, double step_size);
 
@@ -85,6 +85,8 @@ class Mesh {
         void build_circular_target_dual_cells(std::vector<std::vector<point_t>> &cells);
 
         void laplacian_smoothing(std::vector<std::vector<double>> &points, double smoothing_factor);
+
+        std::vector<int> get_vertex_neighbor_ids(int vertex_id);
 };
 
 #endif

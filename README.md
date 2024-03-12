@@ -100,10 +100,12 @@ Result simulated with Blender using LuxRender:
         --focal_l=[focal length] # focal length
     - ```bash
         --thickness=[lens thickness] # thickness of the final caustic lens
+    - ```bash
+        --max_threads=[max number of threads] # sets the maximum cpu threads for the poisson solver
 2. Execute the program:
 
     ```bash
-    ./CausticEngineering.exe --intput_png=../img/siggraph.png --res_w=100 --width=0.5 --focal_l=1.5 --thickness=0.1
+    ./CausticEngineering.exe --intput_png=../img/siggraph.png --res_w=100 --width=0.5 --focal_l=1.5 --thickness=0.1 --max_threads=16
     ```
 
 ### Sample Output
@@ -160,6 +162,7 @@ Shadow of the machined prototype:
 2. reflective caustics -> is currently not that usefull because of the limited freedom in the height solver
 3. circular lenses
 4. create portable builds for Win/Linux in releases
+5. GUI application
 
 ## Contributing
 
