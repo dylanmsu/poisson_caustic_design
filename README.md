@@ -151,10 +151,10 @@ transport from an image to an almost uniform distribution:
 ## Prototype
 
 Machined acrylic prototype:
-![Machined acrylic lens](./doc/1708943955018.jpg)
+![Machined acrylic lens](./doc/IMG20240307095718.jpg)
 
 Shadow of the machined prototype:
-![Resulting Caustic Lens](./doc/1708944014876.jpg)
+![Resulting Caustic Lens](./doc/IMG20240312193656.jpg)
 
 ## Future plans
 
