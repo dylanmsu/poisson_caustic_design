@@ -325,7 +325,7 @@ std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<doub
 
 // exports the inverted transport map as svg (mesh where its density distrbution is dependent on the image intensity)
 void Mesh::calculate_inverted_transport_map(std::string filename, double stroke_width) {
-    mesh.build_bvh(1, 30);
+    build_bvh(1, 30);
     std::vector<std::vector<double>> inverted_points;
     for (int i=0; i<this->source_points.size(); ++i) {
         std::vector<double> point = this->source_points[i];
@@ -619,7 +619,7 @@ std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal
         // (t - µi) / ||(t - µi)||
         x_normals.push_back(x_normal / z_normal);
         y_normals.push_back(y_normal / z_normal);
-        z_normals.push_back(1.0f);
+        z_normals.push_back(z_normal / z_normal);
     }
 
     return {x_normals, y_normals, z_normals};
@@ -631,10 +631,13 @@ void Mesh::set_source_heights(std::vector<double> heights) {
     }
 }
 
-void Mesh::set_target_heights(std::vector<double> heights) {
+double Mesh::set_target_heights(std::vector<double> heights) {
+    double update_sum = 0.0f;
     for (int i=0; i<heights.size(); i++) {
+        update_sum += (heights[i] - this->target_points[i][2]) * (heights[i] - this->target_points[i][2]);
         this->target_points[i][2] = heights[i];
     }
+    return update_sum;
 }
 
 void Mesh::save_solid_obj_source(double thickness, const std::string& filename) {
@@ -645,24 +648,20 @@ void Mesh::save_solid_obj_target(double thickness, const std::string& filename) 
     save_solid_obj(this->target_points, this->source_points, this->triangles, thickness, this->width, this->height, this->res_x, this->res_y, filename);
 }
 
-std::vector<int> Mesh::get_vertex_neighbor_ids(int vertex_id) {
+void Mesh::get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_vertex, int &top_vertex, int &bottom_vertex) {
     int y = vertex_id / res_x;
     int x = vertex_id % res_x;
 
-    std::vector<int> neighbors;
-
     if (x != 0) {
-        neighbors.push_back((y) * res_x + (x - 1));
+        left_vertex = (y) * res_x + (x - 1);
     }
     if (y != 0) {
-        neighbors.push_back((y - 1) * res_x + (x));
+        top_vertex = (y - 1) * res_x + (x);
     }
     if (x != res_x - 1) {
-        neighbors.push_back((y) * res_x + (x + 1));
+        right_vertex = (y) * res_x + (x + 1);
     }
     if (y != res_y - 1) {
-        neighbors.push_back((y + 1) * res_x + (x));
+        bottom_vertex = (y + 1) * res_x + (x);
     }
-
-    return neighbors;
 }

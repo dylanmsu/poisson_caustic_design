@@ -71,7 +71,7 @@ class Mesh {
         std::vector<std::vector<double>> calculate_refractive_normals(double focal_len, double refractive_index);
 
         void set_source_heights(std::vector<double> heights);
-        void set_target_heights(std::vector<double> heights);
+        double set_target_heights(std::vector<double> heights);
 
         void save_solid_obj_target(double thickness, const std::string& filename);
         void save_solid_obj_source(double thickness, const std::string& filename);
@@ -86,7 +86,7 @@ class Mesh {
 
         void laplacian_smoothing(std::vector<std::vector<double>> &points, double smoothing_factor);
 
-        std::vector<int> get_vertex_neighbor_ids(int vertex_id);
+        void get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_vertex, int &top_vertex, int &bottom_vertex);
 };
 
 #endif
