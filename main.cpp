@@ -159,6 +159,89 @@ double focal_l;
 double thickness;
 int nthreads;
 
+std::vector<double> vector_subtract(const std::vector<double>& p1, const std::vector<double>& p2) {
+    std::vector<double> difference(p1.size());
+    
+    for (size_t i = 0; i < p1.size(); ++i) {
+        difference[i] = p1[i] - p2[i];
+    }
+
+    return difference;
+}
+
+std::vector<double> cross_product(const std::vector<double>& p1, const std::vector<double>& p2) {
+    std::vector<double> cross(3);
+    
+    cross[0] = p1[1]*p2[2] - p1[2]*p2[1];
+    cross[1] = p1[2]*p2[0] - p1[0]*p2[2];
+    cross[2] = p1[0]*p2[1] - p1[1]*p2[0];
+
+    return cross;
+}
+
+std::vector<double> calculate_normal_from_points(std::vector<double> &p0, std::vector<double> &p1,std::vector<double> &p2) {
+    std::vector<double> u = vector_subtract(p1, p0);
+    std::vector<double> v = vector_subtract(p2, p0);
+
+    return cross_product(u, v);
+}
+
+// Function to calculate the approximate vertex normal
+std::vector<double> calculate_vertex_normal(std::vector<std::vector<double>> &points, int vertex_index) {
+    std::vector<double> avg_normal = {0.0, 0.0, 0.0}; // Initialize normal to zero vector
+    
+    int left_vtx = NAN;
+    int right_vtx = NAN;
+    int top_vtx = NAN;
+    int bot_vtx = NAN;
+    
+    mesh->get_vertex_neighbor_ids(vertex_index, left_vtx, right_vtx, top_vtx, bot_vtx);
+    
+    if (!std::isnan(left_vtx) && !std::isnan(top_vtx)) {
+        std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[left_vtx], points[top_vtx]);
+
+        avg_normal[0] += normal[0];
+        avg_normal[1] += normal[1];
+        avg_normal[2] += normal[2];
+    }
+
+    if (!std::isnan(left_vtx) && !std::isnan(bot_vtx)) {
+        std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[bot_vtx], points[left_vtx]);
+
+        avg_normal[0] += normal[0];
+        avg_normal[1] += normal[1];
+        avg_normal[2] += normal[2];
+    }
+
+    if (!std::isnan(right_vtx) && !std::isnan(bot_vtx)) {
+        std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[right_vtx], points[bot_vtx]);
+
+        avg_normal[0] += normal[0];
+        avg_normal[1] += normal[1];
+        avg_normal[2] += normal[2];
+    }
+
+    if (!std::isnan(right_vtx) && !std::isnan(top_vtx)) {
+        std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[top_vtx], points[right_vtx]);
+
+        avg_normal[0] += normal[0];
+        avg_normal[1] += normal[1];
+        avg_normal[2] += normal[2];
+    }
+
+    // Calculate magnitude
+    double magnitude = sqrt(avg_normal[0] * avg_normal[0] + avg_normal[1] * avg_normal[1] + avg_normal[2] * avg_normal[2]);
+
+    // Avoid division by zero
+    if (magnitude > 1e-12) {
+        avg_normal[0] /= magnitude;
+        avg_normal[1] /= -magnitude;
+        avg_normal[2] /= magnitude;
+    }
+
+    return avg_normal;
+}
+
 double perform_transport_iteration() {
     std::vector<std::vector<double>> vertex_gradient;
     double min_step;
@@ -208,6 +291,78 @@ double perform_transport_iteration() {
     return min_step*(resolution_x/width);
 }
 
+// normalize a vector such that its length equals 1
+/*void normalize(std::vector<double> &vec) {
+    double squared_len = 0;
+    for (int i=0; i<vec.size(); i++) {
+        squared_len += vec[i] * vec[i];
+    }
+
+    double len = std::sqrt(squared_len);
+
+    for (int i=0; i<vec.size(); i++) {
+        vec[i] /= len;
+    }
+}*/
+
+// uses uniform grid as caustic surface
+void perform_height_map_iteration(int itr) {
+    // calculate the target normals
+    std::vector<std::vector<double>> normals = mesh->calculate_refractive_normals(resolution_x / width * focal_l, 1.49);
+
+    // interpolates the vertex normals into a large uniform grid
+    mesh->build_bvh(1, 30);
+    bool triangle_miss = false;
+    std::vector<std::vector<double>> norm_x = mesh->interpolate_raster(normals[0], resolution_x, resolution_y, triangle_miss);
+    std::vector<std::vector<double>> norm_y = mesh->interpolate_raster(normals[1], resolution_x, resolution_y, triangle_miss);
+
+    if (triangle_miss) {
+        return;
+    }
+
+    // calculates the divergance of the interpolated normals
+    std::vector<std::vector<double>> divergence = calculate_divergence(norm_x, norm_y, resolution_x, resolution_y);
+    subtractAverage(divergence);
+
+    // solve the poisson equation for the divergance
+    std::vector<std::vector<double>> h(resolution_y, std::vector<double> (resolution_x, 0.0));
+    poisson_solver(divergence, h, resolution_x, resolution_y, 100000, 0.0000001, nthreads);
+
+    std::vector<double> interpolated_h;
+    for (int i=0; i<mesh->target_points.size(); i++) {
+        interpolated_h.push_back(bilinearInterpolation(h, mesh->target_points[i][0] * ((resolution_x) / mesh->width), mesh->target_points[i][1] * ((resolution_y) / mesh->height)));
+    }
+    double max_update = mesh->set_target_heights(interpolated_h);
+    printf("height max update %.5e\r\n", max_update);
+
+    // get the heights on the vertex positions
+    //std::vector<double> interpolated_h;
+    //for (int i=0; i<mesh->source_points.size(); i++) {
+    //    interpolated_h.push_back(bilinearInterpolation(h, mesh->source_points[i][0] * ((resolution_x) / mesh->width), mesh->source_points[i][1] * ((resolution_y) / mesh->height)));
+    //}
+    //mesh->set_source_heights(interpolated_h);
+}
+
+void initialize_solvers() {
+    pixels = scale_matrix_proportional(pixels, 0, 1.0f);
+
+    printf("scaled\r\n");
+
+    mesh = new Mesh(width, height, mesh_res_x, mesh_res_y);
+
+    printf("generated mesh\r\n");
+
+    //std::cout << "built mesh" << std::endl;
+
+    //std::vector<std::vector<std::vector<double>>> circ_target_cells;
+    mesh->build_target_dual_cells(target_cells);
+    mesh->build_source_dual_cells(source_cells);
+    //mesh.build_circular_target_dual_cells(circ_target_cells);
+
+    //std::vector<double> target_areas = get_target_areas(pixels, circ_target_cells, resolution_x, resolution_y, width, height);
+    target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);
+}
+
 int main(int argc, char const *argv[])
 {
     // Parse user arguments
@@ -250,28 +405,9 @@ int main(int argc, char const *argv[])
     image = image.resize(resolution_x, resolution_y, -100, -100, 3); // Resize using linear interpolation
 
     // Convert image to grid
-    std::vector<std::vector<double>> pixels;
     image_to_grid(image, pixels);
 
-    printf("converted image to grid\r\n");
-
-    pixels = scale_matrix_proportional(pixels, 0, 1.0f);
-
-    printf("scaled\r\n");
-
-    mesh = new Mesh(width, height, mesh_res_x, mesh_res_y);
-
-    printf("generated mesh\r\n");
-
-    //std::cout << "built mesh" << std::endl;
-
-    //std::vector<std::vector<std::vector<double>>> circ_target_cells;
-    mesh->build_target_dual_cells(target_cells);
-    mesh->build_source_dual_cells(source_cells);
-    //mesh.build_circular_target_dual_cells(circ_target_cells);
-
-    //std::vector<double> target_areas = get_target_areas(pixels, circ_target_cells, resolution_x, resolution_y, width, height);
-    target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);
+    initialize_solvers();
     
     for (int itr=0; itr<100; itr++) {
         printf("starting iteration %i\r\n", itr);
@@ -280,10 +416,10 @@ int main(int argc, char const *argv[])
 
         // export dual cells as svg
         export_cells_as_svg(target_cells, scale_array_proportional(errors, 0.0f, 1.0f), "../cells.svg");
-        save_grid_as_image(scale_matrix_proportional(raster, 0, 1.0f), resolution_x, resolution_y, "../raster.png");
-        save_grid_as_image(scale_matrix_proportional(phi, 0, 1.0f), resolution_x, resolution_y, "../phi.png");
-        save_grid_as_image(scale_matrix_proportional(gradient[0], 0, 1.0f), resolution_x, resolution_y, "../gradient_x.png");
-        save_grid_as_image(scale_matrix_proportional(gradient[1], 0, 1.0f), resolution_x, resolution_y, "../gradient_y.png");
+        //save_grid_as_image(scale_matrix_proportional(raster, 0, 1.0f), resolution_x, resolution_y, "../raster.png");
+        //save_grid_as_image(scale_matrix_proportional(phi, 0, 1.0f), resolution_x, resolution_y, "../phi.png");
+        //save_grid_as_image(scale_matrix_proportional(gradient[0], 0, 1.0f), resolution_x, resolution_y, "../gradient_x.png");
+        //save_grid_as_image(scale_matrix_proportional(gradient[1], 0, 1.0f), resolution_x, resolution_y, "../gradient_y.png");
 
         // export parameterization
         mesh->export_paramererization_to_svg("../parameterization.svg", 1.0f);
@@ -302,93 +438,14 @@ int main(int argc, char const *argv[])
     //mesh.target_points = mesh.circular_transform(mesh.target_points);
     //mesh.source_points = mesh.circular_transform(mesh.source_points);
 
-    // uses uniform grid as caustic surface
-    for (int itr=0; itr<3; itr++) {
-        std::vector<std::vector<double>> normals = mesh->calculate_refractive_normals(resolution_x / width * focal_l, 1.49);
-
-        mesh->build_bvh(1, 30);
-        bool triangle_miss = false;
-        std::vector<std::vector<double>> norm_x = mesh->interpolate_raster(normals[0], resolution_x, resolution_y, triangle_miss);
-        std::vector<std::vector<double>> norm_y = mesh->interpolate_raster(normals[1], resolution_x, resolution_y, triangle_miss);
-
-        if (triangle_miss) {
-            break;
-        }
-
-        //save_grid_as_image(scale_matrix_proportional(norm_x, 0, 1.0f), resolution_x, resolution_y, "../norm_x.png");
-        //save_grid_as_image(scale_matrix_proportional(norm_y, 0, 1.0f), resolution_x, resolution_y, "../norm_y.png");
-
-        std::vector<std::vector<double>> divergence = calculate_divergence(norm_x, norm_y, resolution_x, resolution_y);
-    
-        std::vector<std::vector<double>> h;
-        for (int i = 0; i < resolution_y; ++i) {
-            std::vector<double> row;
-            for (int j = 0; j < resolution_x; ++j) {
-                row.push_back(0.0f);
-            }
-            h.push_back(row);
-        }
-
-        subtractAverage(divergence);
-        poisson_solver(divergence, h, resolution_x, resolution_y, 100000, 0.0000001, nthreads);
-
-        std::vector<double> interpolated_h;
-        for (int i=0; i<mesh->source_points.size(); i++) {
-            interpolated_h.push_back(bilinearInterpolation(h, mesh->source_points[i][0] * ((resolution_x) / mesh->width), mesh->source_points[i][1] * ((resolution_y) / mesh->height)));
-        }
-
-        save_grid_as_image(scale_matrix_proportional(h, 0, 1.0f), resolution_x, resolution_y, "../h.png");
-        save_grid_as_image(scale_matrix_proportional(divergence, 0, 1.0f), resolution_x, resolution_y, "../div.png");
-        
-        //std::vector<std::vector<std::vector<double>>> source_cells;
-        //mesh.build_source_dual_cells(source_cells);
-        //std::vector<double> interpolated_h = integrate_grid_into_cells(h, source_cells, resolution_x, resolution_y, width, height);
-        
-        mesh->set_source_heights(interpolated_h);
+    for (int itr=0; itr<10; itr++) {
+        perform_height_map_iteration(itr);
     }
 
     printf("Height solver done! Exporting as solidified obj\r\n");
 
-    mesh->save_solid_obj_source(thickness, "../output.obj");
-    
-    //*/
-
-    // uses parameterization grid as caustic surface
-    /*for (int itr=0; itr<3; itr++) {
-        std::vector<std::vector<double>> normals = mesh.calculate_refractive_normals(resolution_x / width * focal_l, 1.49);
-
-        mesh.build_bvh(1, 30);
-        std::vector<std::vector<double>> norm_x = mesh.interpolate_raster(normals[0], resolution_x, resolution_y);
-        std::vector<std::vector<double>> norm_y = mesh.interpolate_raster(normals[1], resolution_x, resolution_y);
-
-        std::vector<std::vector<double>> divergence = calculate_divergence(norm_x, norm_y, resolution_x, resolution_y);
-    
-        std::vector<std::vector<double>> h;
-        for (int i = 0; i < resolution_x; ++i) {
-            std::vector<double> row;
-            for (int j = 0; j < resolution_y; ++j) {
-                row.push_back(0.0f);
-            }
-            h.push_back(row);
-        }
-
-        subtractAverage(divergence);
-        poisson_solver(divergence, h, resolution_x, resolution_y, 100000, 1e-8, 16);
-
-        save_grid_as_image(scale_matrix_proportional(h, 0, 1.0f), resolution_x, resolution_y, "../h.png");
-        save_grid_as_image(scale_matrix_proportional(divergence, 0, 1.0f), resolution_x, resolution_y, "../div.png");
-
-        std::vector<double> interpolated_h;
-        for (int i=0; i<mesh.target_points.size(); i++) {
-            interpolated_h.push_back(bilinearInterpolation(h, mesh.target_points[i][0] * ((resolution_x) / mesh.width)-1, mesh.target_points[i][1] * ((resolution_y) / mesh.height))-1);
-        }
-
-        mesh.set_target_heights(interpolated_h);
-    }
-
-    printf("Height solver done! Exporting as solidified obj\r\n");
-
-    mesh.save_solid_obj_target(thickness, "../output.obj");
+    //mesh->save_solid_obj_source(thickness, "../output.obj");
+    mesh->save_solid_obj_target(thickness, "../output.obj");
     
     //*/
 
