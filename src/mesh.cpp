@@ -37,6 +37,7 @@ void Mesh::build_bvh(int targetCellSize, int maxDepth) {
 
 // generates a structured triangulation used for the parameterization
 void Mesh::generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<point_t> &points) {
+    printf("%i, %i, %f, %f\r\n", nx, ny, width, height);
     // Generate points
     for (int i = 0; i < ny; ++i) {
         for (int j = 0; j < nx; ++j) {
