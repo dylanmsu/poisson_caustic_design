@@ -39,10 +39,10 @@ target_link_libraries(CausticEngineering PUBLIC ${PNG_LIBRARIES} ${ZLIB_LIBRARIE
 target_link_libraries(CausticEngineering PUBLIC ${X11_LIBRARIES})
 
 # Install the executable
-install(TARGETS CausticEngineering DESTINATION bin)
+install(TARGETS CausticEngineering DESTINATION .)
 
 # Include zlib and libpng libraries in the ZIP archive
-install(FILES ${ZLIB_LIBRARIES} ${PNG_LIBRARIES} DESTINATION lib)
+install(FILES ${ZLIB_LIBRARIES} ${PNG_LIBRARIES} DESTINATION .)
 
 include(InstallRequiredSystemLibraries)
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")

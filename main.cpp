@@ -139,6 +139,7 @@ int main(int argc, char const *argv[])
         double step_size = caustic_design.perform_transport_iteration();
 
         caustic_design.export_paramererization_to_svg("../parameterization_" + std::to_string(itr + 1) + ".svg", 0.5f);
+        //caustic_design.export_inverted_transport_map("../inverted.svg", 0.5f);
 
         printf("step_size = %f\r\n", step_size);
 
@@ -154,10 +155,8 @@ int main(int argc, char const *argv[])
 
     printf("Height solver done! Exporting as solidified obj\r\n");
 
-    //mesh->save_solid_obj_source(thickness, "../output.obj");
-    caustic_design.save_solid_obj_target("../output.obj");
-    
-    //*/
+    //caustic_design.save_solid_obj_target("../output.obj");
+    caustic_design.save_solid_obj_source("../output.obj");
 
     return 0;
 }

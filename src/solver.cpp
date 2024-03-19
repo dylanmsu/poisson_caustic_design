@@ -6,6 +6,8 @@
 
 #include "solver.h"
 
+double solver_progress = 0.0f;
+
 // perform a relaxation step
 double patial_relax(std::vector<std::vector<double>> &output, std::vector<std::vector<double>> &input, int width, int height, double omega, int start_x, int start_y, int end_x, int end_y) {
     int x, y;
@@ -58,10 +60,19 @@ double patial_relax(std::vector<std::vector<double>> &output, std::vector<std::v
     return max_update;
 }
 
+void calculate_progress(int value, int minValue, int maxValue) {
+    const int barWidth = 50;
+
+    // Calculate the percentage completion
+    solver_progress = static_cast<double>(value - minValue) / (maxValue - minValue);
+}
+
 void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::vector<double>> &output, int width, int height, int max_iterations, double convergence_threshold, int max_threads) {
     double omega = 2.0 / (1.0 + 3.14159265 / width);
 
     int num_threads = std::thread::hardware_concurrency();
+
+    double initial_max_update = 0.0f;
 
     num_threads = fmin(max_threads, num_threads);
 
@@ -111,16 +122,22 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
             threads[i].join();
         }//*/
 
+        if (i == 0) {
+            initial_max_update = max_update;
+        }
+
         // print progress to terminal
         if (i % 100 == 0) {
             printf("\33[2K\r");
-            printf("Solver max_update: %.5e, convergence at %.2e\r", max_update, convergence_threshold);
+            printf("Solver max_update: %f, convergence at %.2e\r", log(1.0f / max_update), convergence_threshold);
+
+            calculate_progress(log(1.0f / max_update), log(1.0f / initial_max_update), log(1.0f / convergence_threshold));
         }
 
         // check for convergance
         if (max_update < convergence_threshold) {
-            printf("Convergence reached at iteration %d with max_update of %.5e\n", i, max_update);
             break;
+            printf("\r\n");
         }
     }
 }
