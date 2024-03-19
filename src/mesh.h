@@ -70,7 +70,7 @@ class Mesh {
 
         std::vector<std::vector<double>> calculate_refractive_normals(double focal_len, double refractive_index);
 
-        void set_source_heights(std::vector<double> heights);
+        double set_source_heights(std::vector<double> heights);
         double set_target_heights(std::vector<double> heights);
 
         void save_solid_obj_target(double thickness, const std::string& filename);

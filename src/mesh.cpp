@@ -271,24 +271,24 @@ void Mesh::build_circular_target_dual_cells(std::vector<std::vector<point_t>> &c
 
 // interpolate target mesh into a rectangular grid
 std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss) {
-    build_bvh(1, 30);
+    build_bvh(5, 30);
     
     // Generate x and y vectors
     std::vector<double> x(res_x);
     std::vector<double> y(res_y);
 
-    double epsilon = std::numeric_limits<double>::epsilon();
+    double epsilon = 1e-6;//std::numeric_limits<float>::epsilon();
 
     for (int i = 0; i < res_x; ++i) {
         //x[i] = ((static_cast<double>(i) + 1) / res_x) * width - (1 * width) / (res_x);
-        x[i] = static_cast<double>(i) * (width) / (res_x - 1);
+        x[i] = static_cast<double>(i) * (width - epsilon) / (res_x - 1) + 0.5 * epsilon;
         //x[i] = (static_cast<double>(i) + 1) * width / (res_x);
         //x[i] = x[i] - 0.000001 / res_x;
     }
 
     for (int i = 0; i < res_y; ++i) {
         //y[i] = static_cast<double>(i) * height / (res_y - 1);
-        y[i] = static_cast<double>(i) * (height) / (res_y - 1);
+        y[i] = static_cast<double>(i) * (height - epsilon) / (res_y - 1) + 0.5 * epsilon;
         //y[i] = y[i] - 0.000001 / res_y;
     }
 
@@ -314,6 +314,8 @@ std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<doub
                 triangle_miss = false;
             } else {
                 printf("interpolation miss!\r\n");
+                printf("x: %f, y: %f\r\n", point[0], point[1]);
+                exit(0);
                 triangle_miss = true;
                 row.push_back(NAN);
             }
@@ -326,7 +328,7 @@ std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<doub
 
 // exports the inverted transport map as svg (mesh where its density distrbution is dependent on the image intensity)
 void Mesh::calculate_inverted_transport_map(std::string filename, double stroke_width) {
-    build_bvh(1, 30);
+    build_bvh(5, 30);
     std::vector<std::vector<double>> inverted_points;
     for (int i=0; i<this->source_points.size(); ++i) {
         std::vector<double> point = this->source_points[i];
@@ -462,7 +464,6 @@ double Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>
     }*/
 
     double min_t = find_min_delta_t(velocities);
-    //double min_t = 1.0f/1600.0f;
     //std::cout << "min_t = " << min_t << std::endl;
 
     // Move vertices along the gradient
@@ -496,6 +497,7 @@ void Mesh::laplacian_smoothing(std::vector<std::vector<double>> &points, double 
             new_point[1] += points[(y + 1) * res_x + x][1];
             new_point[1] += points[(y - 1) * res_x + x][1];
             new_point[1] /= 3.0f;
+            //points[y * res_x + x][0] = new_point[0] = 0.0f;
             points_copy.push_back(new_point);
         } else if (x == res_x - 1 && (y != 0 && y != res_y - 1)) {
             new_point[1] = 0.0f;
@@ -503,6 +505,7 @@ void Mesh::laplacian_smoothing(std::vector<std::vector<double>> &points, double 
             new_point[1] += points[(y - 1) * res_x + x][1];
             new_point[1] += points[(y + 1) * res_x + x][1];
             new_point[1] /= 3.0f;
+            //points[y * res_x + x][0] = new_point[0] = width;
             points_copy.push_back(new_point);
         } else if (y == 0 && (x != 0 && x != res_x - 1)) {
             new_point[0] = 0.0f;
@@ -510,6 +513,7 @@ void Mesh::laplacian_smoothing(std::vector<std::vector<double>> &points, double 
             new_point[0] += points[y * res_x + (x + 1)][0];
             new_point[0] += points[(y + 1) * res_x + x][0];
             new_point[0] /= 3.0f;
+            //points[y * res_x + x][1] = new_point[1] = 0.0f;
             points_copy.push_back(new_point);
         } else if (y == res_y - 1 && (x != 0 && x != res_x - 1)) {
             new_point[0] = 0.0f;
@@ -517,6 +521,7 @@ void Mesh::laplacian_smoothing(std::vector<std::vector<double>> &points, double 
             new_point[0] += points[(y - 1) * res_x + x][0];
             new_point[0] += points[y * res_x + (x + 1)][0];
             new_point[0] /= 3.0f;
+            //points[y * res_x + x][1] = new_point[1] = height;
             points_copy.push_back(new_point);
         } else if (x != 0 && x != res_x - 1 && y != 0 && y != res_y - 1) {
             new_point[0] = 0.0f;
@@ -626,10 +631,24 @@ std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal
     return {x_normals, y_normals, z_normals};
 }
 
-void Mesh::set_source_heights(std::vector<double> heights) {
+double Mesh::set_source_heights(std::vector<double> heights) {
+        // Find maximum height
+    double max_h = 0;
     for (int i=0; i<heights.size(); i++) {
+        double h = heights[i];
+
+        if (max_h > h) {
+            max_h = h;
+        }
+    }
+
+    double update_sum = 0.0f;
+    for (int i=0; i<heights.size(); i++) {
+        heights[i] -= max_h;
+        update_sum += (heights[i] - this->source_points[i][2]) * (heights[i] - this->source_points[i][2]);
         this->source_points[i][2] = heights[i];
     }
+    return update_sum;
 }
 
 double Mesh::set_target_heights(std::vector<double> heights) {

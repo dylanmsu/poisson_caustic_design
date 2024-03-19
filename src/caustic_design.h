@@ -22,6 +22,7 @@ public:
     std::vector<std::vector<double>> pixels;
     std::vector<std::vector<double>> raster;
     std::vector<std::vector<std::vector<double>>> gradient;
+    std::vector<std::vector<double>> h;
 
     int mesh_res_x;
     int mesh_res_y;
@@ -52,8 +53,11 @@ public:
     void set_solver_max_threads(int n_threads);
 
     void save_solid_obj_target(const std::string& filename);
+    void save_solid_obj_source(const std::string& filename);
 
     void export_paramererization_to_svg(const std::string& filename, double line_width);
+
+    void export_inverted_transport_map(std::string filename, double stroke_width);
 };
 
 #endif // _CAUSTIC_DESIGN_H

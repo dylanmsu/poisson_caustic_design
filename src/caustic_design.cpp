@@ -17,6 +17,10 @@ Caustic_design::~Caustic_design()
 {
 }
 
+void Caustic_design::export_inverted_transport_map(std::string filename, double stroke_width) {
+    mesh->calculate_inverted_transport_map(filename, stroke_width);
+}
+
 void Caustic_design::export_paramererization_to_svg(const std::string& filename, double line_width) {
     mesh->export_paramererization_to_svg(filename, line_width);
 }
@@ -50,6 +54,10 @@ void Caustic_design::set_solver_max_threads(int n_threads) {
 
 void Caustic_design::save_solid_obj_target(const std::string& filename) {
     this->mesh->save_solid_obj_target(thickness, filename);
+}
+
+void Caustic_design::save_solid_obj_source(const std::string& filename) {
+    this->mesh->save_solid_obj_source(thickness, filename);
 }
 
 std::vector<double> vector_subtract(const std::vector<double>& p1, const std::vector<double>& p2) {
@@ -217,8 +225,8 @@ double Caustic_design::perform_transport_iteration() {
     // step the mesh vertices in the direction of their gradient vector
     min_step = mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.95f);
 
-    mesh->laplacian_smoothing(mesh->target_points, min_step*(resolution_x/width) / 2);
-    //mesh->laplacian_smoothing(mesh->target_points, 0.1f);
+    mesh->laplacian_smoothing(mesh->target_points, min_step*(resolution_x/width));
+    //mesh->laplacian_smoothing(mesh->target_points, 1.0f);
 
     return min_step*(resolution_x/width);
 }
@@ -243,7 +251,7 @@ void Caustic_design::perform_height_map_iteration(int itr) {
     std::vector<std::vector<double>> normals = mesh->calculate_refractive_normals(resolution_x / width * focal_l, 1.49);
 
     // interpolates the vertex normals into a large uniform grid
-    mesh->build_bvh(1, 30);
+    mesh->build_bvh(5, 30);
     bool triangle_miss = false;
     std::vector<std::vector<double>> norm_x = mesh->interpolate_raster(normals[0], resolution_x, resolution_y, triangle_miss);
     std::vector<std::vector<double>> norm_y = mesh->interpolate_raster(normals[1], resolution_x, resolution_y, triangle_miss);
@@ -257,22 +265,22 @@ void Caustic_design::perform_height_map_iteration(int itr) {
     subtractAverage(divergence);
 
     // solve the poisson equation for the divergance
-    std::vector<std::vector<double>> h(resolution_y, std::vector<double> (resolution_x, 0.0));
     poisson_solver(divergence, h, resolution_x, resolution_y, 100000, 0.0000001, nthreads);
 
-    std::vector<double> interpolated_h;
+    /*std::vector<double> interpolated_h;
     for (int i=0; i<mesh->target_points.size(); i++) {
         interpolated_h.push_back(bilinearInterpolation(h, mesh->target_points[i][0] * ((resolution_x) / mesh->width), mesh->target_points[i][1] * ((resolution_y) / mesh->height)));
     }
     double max_update = mesh->set_target_heights(interpolated_h);
-    printf("height max update %.5e\r\n", max_update);
+    printf("height max update %.5e\r\n", max_update);*/
 
     // get the heights on the vertex positions
-    //std::vector<double> interpolated_h;
-    //for (int i=0; i<mesh->source_points.size(); i++) {
-    //    interpolated_h.push_back(bilinearInterpolation(h, mesh->source_points[i][0] * ((resolution_x) / mesh->width), mesh->source_points[i][1] * ((resolution_y) / mesh->height)));
-    //}
-    //mesh->set_source_heights(interpolated_h);
+    std::vector<double> interpolated_h;
+    for (int i=0; i<mesh->source_points.size(); i++) {
+        interpolated_h.push_back(bilinearInterpolation(h, mesh->source_points[i][0] * ((resolution_x) / mesh->width), mesh->source_points[i][1] * ((resolution_y) / mesh->height)));
+    }
+    double max_update = mesh->set_source_heights(interpolated_h);
+    printf("height max update %.5e\r\n", max_update);
 }
 
 void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) {
@@ -299,11 +307,13 @@ void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) 
     export_cells_as_svg(target_cells, scale_array_proportional(target_areas, 0.0f, 1.0f), "../cells.svg");
 
     phi.clear();
+    h.clear();
     for (int i = 0; i < resolution_y; ++i) {
         std::vector<double> row;
         for (int j = 0; j < resolution_x; ++j) {
             row.push_back(0.0f);
         }
         phi.push_back(row);
+        h.push_back(row);
     }
 }
