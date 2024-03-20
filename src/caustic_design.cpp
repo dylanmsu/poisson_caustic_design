@@ -213,10 +213,10 @@ double Caustic_design::perform_transport_iteration() {
     // calculate the gradient vectors corresponding to each vertex in the mesh
 
     // bilinear interpolating the gradients (negligibly faster, but gives lower contrast results)
-    /*std::vector<std::vector<double>> gradient(2);
+    /*std::vector<std::vector<double>> vertex_gradient(2);
     for (int i=0; i<mesh.target_points.size(); i++) {
-        gradient[0].push_back(bilinearInterpolation(grad[0], mesh.target_points[i][0] * ((resolution_x - 2) / mesh.width), mesh.target_points[i][1] * ((resolution_y - 2) / mesh.height)));
-        gradient[1].push_back(bilinearInterpolation(grad[1], mesh.target_points[i][0] * ((resolution_x - 2) / mesh.width), mesh.target_points[i][1] * ((resolution_y - 2) / mesh.height)));
+        vertex_gradient[0].push_back(bilinearInterpolation(gradient[0], mesh->target_points[i][0] * ((resolution_x - 2) / mesh->width), mesh->target_points[i][1] * ((resolution_y - 2) / mesh->height)));
+        vertex_gradient[1].push_back(bilinearInterpolation(gradient[1], mesh->target_points[i][0] * ((resolution_x - 2) / mesh->width), mesh->target_points[i][1] * ((resolution_y - 2) / mesh->height)));
     }//*/
 
     // integrate the gradient grid into the dual cells of the vertices (slower but better contrast)
@@ -225,7 +225,7 @@ double Caustic_design::perform_transport_iteration() {
     // step the mesh vertices in the direction of their gradient vector
     min_step = mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.95f);
 
-    mesh->laplacian_smoothing(mesh->target_points, min_step*(resolution_x/width));
+    mesh->laplacian_smoothing(mesh->target_points, (min_step * 2)*(resolution_x/width));
     //mesh->laplacian_smoothing(mesh->target_points, 1.0f);
 
     return min_step*(resolution_x/width);

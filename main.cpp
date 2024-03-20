@@ -1,4 +1,4 @@
-#include "stdio.h"
+/*#include "stdio.h"
 #include <iostream>
 #include <vector>
 #include <fstream>
@@ -92,9 +92,9 @@ std::unordered_map<std::string, std::string> parse_arguments(int argc, char cons
     }
 
     return args;
-}
+}*/
 
-int main(int argc, char const *argv[])
+/*int main(int argc, char const *argv[])
 {
     // Parse user arguments
     std::unordered_map<std::string, std::string> args = parse_arguments(argc, argv);
@@ -104,10 +104,10 @@ int main(int argc, char const *argv[])
     double aspect_ratio = (double)image.width() / (double)image.height();
 
     // Print parsed arguments
-    /*for (const auto& pair : args) {
+    //for (const auto& pair : args) {
         //std::cout << "Key: " << pair.first << ", Value: " << pair.second << std::endl;
-        printf("Key: %s, Value: %s\r\n", pair.first.c_str(), pair.second.c_str());
-    }*/
+    //    printf("Key: %s, Value: %s\r\n", pair.first.c_str(), pair.second.c_str());
+    //}
 
     Caustic_design caustic_design;
 
@@ -159,4 +159,16 @@ int main(int argc, char const *argv[])
     caustic_design.save_solid_obj_source("../output.obj");
 
     return 0;
+}*/
+
+#include "mainwindow.h"
+
+#include <QApplication>
+
+int main(int argc, char *argv[])
+{
+    QApplication a(argc, argv);
+    MainWindow w;
+    w.show();
+    return a.exec();
 }
