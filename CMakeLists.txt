@@ -18,12 +18,12 @@ set(SOURCE_FILES
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
-    #src/caustic_design.cpp
-    #src/polygon_utils.cpp
-    #src/solver.cpp
-    #src/utils.cpp
-    #src/mesh.cpp
-    #src/bvh.cpp
+    src/caustic_design.cpp
+    src/polygon_utils.cpp
+    src/solver.cpp
+    src/utils.cpp
+    src/mesh.cpp
+    src/bvh.cpp
 )
 
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dcimg_display=0")

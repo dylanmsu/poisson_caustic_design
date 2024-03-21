@@ -164,10 +164,12 @@ std::unordered_map<std::string, std::string> parse_arguments(int argc, char cons
 #include "mainwindow.h"
 
 #include <QApplication>
+#include <QtGui/QImage>
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
+    QImage img;
+    img.load("../img/lena.png");
     MainWindow w;
     w.show();
     return a.exec();
