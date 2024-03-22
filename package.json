@@ -1,0 +1,29 @@
+{
+  "name": "caustic_engineering_addon",
+  "version": "1.0.0",
+  "description": "caustic desing addon",
+  "main": "index.js",
+  "directories": {
+    "doc": "doc"
+  },
+  "scripts": {
+    "install": "cmake-js compile",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dylanmsu/caustic_engineering.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dylanmsu/caustic_engineering/issues"
+  },
+  "dependencies": {
+    "node-addon-api": "^3.0.0"
+  },
+  "devDependencies": {
+    "cmake-js": "^6.3.2"
+  },
+  "homepage": "https://github.com/dylanmsu/caustic_engineering#readme"
+}

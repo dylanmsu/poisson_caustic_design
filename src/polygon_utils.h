@@ -4,10 +4,6 @@
 #include <math.h>
 #include <vector>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct {
     double x, y;
 } vec_t;
@@ -46,9 +42,5 @@ std::vector<double> integrate_grid_into_cells(std::vector<std::vector<double>> &
 
 std::vector<double> get_target_areas(std::vector<std::vector<double>> &image, std::vector<std::vector<std::vector<double>>> &input_polygons, int image_w, int image_h, double width, double height);
 std::vector<double> get_source_areas(std::vector<std::vector<std::vector<double>>> &input_polygons);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // POLYGON_UTILS_H

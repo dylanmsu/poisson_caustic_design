@@ -304,8 +304,8 @@ double integrate_cell_intensities(std::vector<std::vector<double>> &image, std::
 
 	double px_side_length = width / ((double)image_w);
 
-	for (int y = std::fmax(floor(bbox.ymin/px_side_length), 0.0f); y < std::fmin(ceil(bbox.ymax/px_side_length), image_h); ++y) {
-		for (int x = std::fmax(floor(bbox.xmin/px_side_length), 0.0f); x < std::fmin(ceil(bbox.xmax/px_side_length), image_w); x++) {
+	for (int y = fmax(floor(bbox.ymin/px_side_length), 0.0f); y < fmin(ceil(bbox.ymax/px_side_length), image_h); ++y) {
+		for (int x = fmax(floor(bbox.xmin/px_side_length), 0.0f); x < fmin(ceil(bbox.xmax/px_side_length), image_w); x++) {
             double center[2] = {(double)x + 0.5, (double)y + 0.5};
 
 			center[0] *= px_side_length;
@@ -421,8 +421,8 @@ void integrate_cell_gradient(std::vector<std::vector<double>> &grad_x, std::vect
 
 	double px_side_length = width / ((double)grad_w);
 
-	for (int y = std::fmax(floor(bbox.ymin/px_side_length), 0.0f); y < std::fmin(ceil(bbox.ymax/px_side_length), grad_h); ++y) {
-		for (int x = std::fmax(floor(bbox.xmin/px_side_length), 0.0f); x < std::fmin(ceil(bbox.xmax/px_side_length), grad_w); x++) {
+	for (int y = fmax(floor(bbox.ymin/px_side_length), 0.0f); y < fmin(ceil(bbox.ymax/px_side_length), grad_h); ++y) {
+		for (int x = fmax(floor(bbox.xmin/px_side_length), 0.0f); x < fmin(ceil(bbox.xmax/px_side_length), grad_w); x++) {
             double center[2] = {(double)x + 0.5, (double)y + 0.5};
 
 			center[0] *= px_side_length;

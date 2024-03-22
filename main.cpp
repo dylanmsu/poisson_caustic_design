@@ -1,4 +1,4 @@
-#include "stdio.h"
+/*#include "stdio.h"
 #include <iostream>
 #include <vector>
 #include <fstream>
@@ -92,9 +92,9 @@ std::unordered_map<std::string, std::string> parse_arguments(int argc, char cons
     }
 
     return args;
-}
+}*/
 
-int main(int argc, char const *argv[])
+/*int main(int argc, char const *argv[])
 {
     // Parse user arguments
     std::unordered_map<std::string, std::string> args = parse_arguments(argc, argv);
@@ -104,10 +104,10 @@ int main(int argc, char const *argv[])
     double aspect_ratio = (double)image.width() / (double)image.height();
 
     // Print parsed arguments
-    /*for (const auto& pair : args) {
-        //std::cout << "Key: " << pair.first << ", Value: " << pair.second << std::endl;
-        printf("Key: %s, Value: %s\r\n", pair.first.c_str(), pair.second.c_str());
-    }*/
+    //for (const auto& pair : args) {
+    //    //std::cout << "Key: " << pair.first << ", Value: " << pair.second << std::endl;
+    //    printf("Key: %s, Value: %s\r\n", pair.first.c_str(), pair.second.c_str());
+    //}
 
     Caustic_design caustic_design;
 
@@ -159,4 +159,105 @@ int main(int argc, char const *argv[])
     caustic_design.save_solid_obj_source("../output.obj");
 
     return 0;
+}*/
+
+#include <napi.h>
+
+#include "src/caustic_design.h"
+
+Caustic_design caustic_design;
+
+int mesh_resolution_x = 100;
+int mesh_resolution_y = 100;
+
+double aspect_ratio = 1.0f;
+
+double mesh_width = 1.0f;
+
+int add(int x, int y){
+ return (x+y);
 }
+
+Napi::Number getSolverProgress(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    double progress = caustic_design.get_solver_progress();
+
+    Napi::Number returnValue = Napi::Number::New(env, progress);
+
+    return returnValue;
+}
+
+Napi::Number loadImage(const Napi::CallbackInfo& info) 
+{   
+    Napi::Env env = info.Env();
+    Napi::Array b = info[0].As<Napi::Array>();
+    int width = info[1].As<Napi::Number>();
+    int height = info[2].As<Napi::Number>();
+    
+    std::vector<double> pixels;
+    for(int i=0; i<b.Length(); i++)
+    {
+        Napi::Value v = b[i];
+        if (v.IsNumber())
+        {
+            double value = (double)v.As<Napi::Number>();
+            //printf("value = %f\r\n", value);
+            pixels.push_back(value);
+        }
+    }
+
+    std::vector<std::vector<double>> pixels_2d;
+    for (int y = 0; y < height; y++) {
+        std::vector<double> row;
+        for (int x = 0; x < width; x++) {
+            row.push_back(pixels[y * width + x]);
+        }
+        pixels_2d.push_back(row);
+    }
+
+    caustic_design.load_image(pixels_2d);
+    caustic_design.initialize_solvers();
+    caustic_design.perform_transport_iteration();
+
+    Napi::Number returnValue = Napi::Number::New(env, pixels.size());
+
+    return returnValue;
+}
+
+Napi::Number addWrapped(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+
+  //check if arguments are integer only.
+  if(info.Length()<2 || !info[0].IsNumber() || !info[1].IsNumber()){
+      Napi::TypeError::New(env, "arg1::Number, arg2::Number expected").ThrowAsJavaScriptException();
+  }
+
+  //convert javascripts datatype to c++
+  Napi::Number first = info[0].As<Napi::Number>();
+  Napi::Number second = info[1].As<Napi::Number>();
+
+  //run c++ function return value and return it in javascript
+  Napi::Number returnValue = Napi::Number::New(env, add(first.Int32Value(), second.Int32Value()));
+  
+  return returnValue;
+}
+
+Napi::Object Init(Napi::Env env, Napi::Object exports) 
+{
+    caustic_design.set_mesh_resolution(mesh_resolution_x, mesh_resolution_x / aspect_ratio);
+    caustic_design.set_domain_resolution(4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio);
+    caustic_design.set_mesh_size(mesh_width, mesh_width / aspect_ratio);
+
+    caustic_design.set_lens_focal_length(1.0f);
+    caustic_design.set_lens_thickness(0.2f);
+    caustic_design.set_solver_max_threads(8);
+
+    //export Napi function
+    exports.Set("add", Napi::Function::New(env, addWrapped));
+    exports.Set("loadImage", Napi::Function::New(env, loadImage));
+    exports.Set("getSolverProgress", Napi::Function::New(env, getSolverProgress));
+    return exports;
+}
+
+NODE_API_MODULE(addon, Init)

@@ -43,7 +43,9 @@ public:
 
     void perform_height_map_iteration(int itr);
 
-    void initialize_solvers(std::vector<std::vector<double>> image);
+    void initialize_solvers();
+
+    void load_image(std::vector<std::vector<double>> image);
 
     void set_mesh_resolution(int width, int heigth);
     void set_domain_resolution(int width, int heigth);
@@ -58,6 +60,8 @@ public:
     void export_paramererization_to_svg(const std::string& filename, double line_width);
 
     void export_inverted_transport_map(std::string filename, double stroke_width);
+
+    double get_solver_progress();
 };
 
 #endif // _CAUSTIC_DESIGN_H

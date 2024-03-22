@@ -8,6 +8,10 @@
 
 double solver_progress = 0.0f;
 
+double get_progress() {
+    return solver_progress;
+}
+
 // perform a relaxation step
 double patial_relax(std::vector<std::vector<double>> &output, std::vector<std::vector<double>> &input, int width, int height, double omega, int start_x, int start_y, int end_x, int end_y) {
     int x, y;
@@ -61,10 +65,8 @@ double patial_relax(std::vector<std::vector<double>> &output, std::vector<std::v
 }
 
 void calculate_progress(int value, int minValue, int maxValue) {
-    const int barWidth = 50;
-
     // Calculate the percentage completion
-    solver_progress = static_cast<double>(value - minValue) / (maxValue - minValue);
+    solver_progress = static_cast<double>((value - minValue) / (maxValue - minValue));
 }
 
 void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::vector<double>> &output, int width, int height, int max_iterations, double convergence_threshold, int max_threads) {
@@ -136,8 +138,9 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
 
         // check for convergance
         if (max_update < convergence_threshold) {
-            break;
             printf("\r\n");
+            solver_progress = -1.0f;
+            break;
         }
     }
 }

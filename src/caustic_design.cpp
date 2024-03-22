@@ -17,6 +17,10 @@ Caustic_design::~Caustic_design()
 {
 }
 
+double Caustic_design::get_solver_progress() {
+    return get_progress();
+}
+
 void Caustic_design::export_inverted_transport_map(std::string filename, double stroke_width) {
     mesh->calculate_inverted_transport_map(filename, stroke_width);
 }
@@ -98,7 +102,7 @@ std::vector<double> Caustic_design::calculate_vertex_normal(std::vector<std::vec
     
     mesh->get_vertex_neighbor_ids(vertex_index, left_vtx, right_vtx, top_vtx, bot_vtx);
     
-    if (!std::isnan(left_vtx) && !std::isnan(top_vtx)) {
+    if (!std::isnan(static_cast<double>(left_vtx)) && !std::isnan(static_cast<double>(top_vtx))) {
         std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[left_vtx], points[top_vtx]);
 
         avg_normal[0] += normal[0];
@@ -106,7 +110,7 @@ std::vector<double> Caustic_design::calculate_vertex_normal(std::vector<std::vec
         avg_normal[2] += normal[2];
     }
 
-    if (!std::isnan(left_vtx) && !std::isnan(bot_vtx)) {
+    if (!std::isnan(static_cast<double>(left_vtx)) && !std::isnan(static_cast<double>(bot_vtx))) {
         std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[bot_vtx], points[left_vtx]);
 
         avg_normal[0] += normal[0];
@@ -114,7 +118,7 @@ std::vector<double> Caustic_design::calculate_vertex_normal(std::vector<std::vec
         avg_normal[2] += normal[2];
     }
 
-    if (!std::isnan(right_vtx) && !std::isnan(bot_vtx)) {
+    if (!std::isnan(static_cast<double>(right_vtx)) && !std::isnan(static_cast<double>(bot_vtx))) {
         std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[right_vtx], points[bot_vtx]);
 
         avg_normal[0] += normal[0];
@@ -122,7 +126,7 @@ std::vector<double> Caustic_design::calculate_vertex_normal(std::vector<std::vec
         avg_normal[2] += normal[2];
     }
 
-    if (!std::isnan(right_vtx) && !std::isnan(top_vtx)) {
+    if (!std::isnan(static_cast<double>(right_vtx)) && !std::isnan(static_cast<double>(top_vtx))) {
         std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[top_vtx], points[right_vtx]);
 
         avg_normal[0] += normal[0];
@@ -283,8 +287,13 @@ void Caustic_design::perform_height_map_iteration(int itr) {
     printf("height max update %.5e\r\n", max_update);
 }
 
-void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) {
+void Caustic_design::load_image(std::vector<std::vector<double>> image) {
     pixels = scale_matrix_proportional(image, 0, 1.0f);
+}
+
+void Caustic_design::initialize_solvers() {
+    int image_width = static_cast<int>(pixels[0].size());
+    int image_height = static_cast<int>(pixels.size());
 
     printf("scaled\r\n");
 
@@ -292,7 +301,7 @@ void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) 
 
     printf("generated mesh\r\n");
 
-    mesh->export_to_svg("../mesh.svg", 1);
+    //mesh->export_to_svg("../mesh.svg", 1);
 
     //std::cout << "built mesh" << std::endl;
 
@@ -302,9 +311,9 @@ void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) 
     //mesh.build_circular_target_dual_cells(circ_target_cells);
 
     //std::vector<double> target_areas = get_target_areas(pixels, circ_target_cells, resolution_x, resolution_y, width, height);
-    target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);
+    target_areas = get_target_areas(pixels, target_cells, image_width, image_height, width, height);
 
-    export_cells_as_svg(target_cells, scale_array_proportional(target_areas, 0.0f, 1.0f), "../cells.svg");
+    //export_cells_as_svg(target_cells, scale_array_proportional(target_areas, 0.0f, 1.0f), "../cells.svg");
 
     phi.clear();
     h.clear();
