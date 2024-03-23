@@ -62,6 +62,8 @@ public:
     void export_inverted_transport_map(std::string filename, double stroke_width);
 
     double get_solver_progress();
+
+    std::vector<std::vector<double>> get_error_grid();
 };
 
 #endif // _CAUSTIC_DESIGN_H

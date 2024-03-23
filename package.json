@@ -23,7 +23,7 @@
     "node-addon-api": "^3.0.0"
   },
   "devDependencies": {
-    "cmake-js": "^6.3.2"
+    "cmake-js": "^7.3.0"
   },
   "homepage": "https://github.com/dylanmsu/caustic_engineering#readme"
 }

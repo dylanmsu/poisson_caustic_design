@@ -178,19 +178,10 @@ int add(int x, int y){
  return (x+y);
 }
 
-Napi::Number getSolverProgress(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-
-    double progress = caustic_design.get_solver_progress();
-
-    Napi::Number returnValue = Napi::Number::New(env, progress);
-
-    return returnValue;
-}
-
 Napi::Number loadImage(const Napi::CallbackInfo& info) 
 {   
     Napi::Env env = info.Env();
+    
     Napi::Array b = info[0].As<Napi::Array>();
     int width = info[1].As<Napi::Number>();
     int height = info[2].As<Napi::Number>();
@@ -218,9 +209,43 @@ Napi::Number loadImage(const Napi::CallbackInfo& info)
 
     caustic_design.load_image(pixels_2d);
     caustic_design.initialize_solvers();
-    caustic_design.perform_transport_iteration();
 
     Napi::Number returnValue = Napi::Number::New(env, pixels.size());
+
+    return returnValue;
+}
+
+Napi::Array flatten2DArray(const std::vector<std::vector<double>>& array2D, const Napi::Env& env) {
+    Napi::Array result = Napi::Array::New(env);
+    size_t index = 0;
+
+    for (const auto& row : array2D) {
+        for (const auto& element : row) {
+            result[index++] = Napi::Number::New(env, element);
+        }
+    }
+
+    return result;
+}
+
+Napi::Value getErrorGrid(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    // Assuming you have a 2D array 'pixels_2d' that you want to flatten
+    std::vector<std::vector<double>> pixels_2d = caustic_design.get_error_grid();
+
+    // Flatten the 2D array into a 1D array
+    Napi::Array flattenedArray = flatten2DArray(pixels_2d, env);
+
+    return flattenedArray;
+}
+
+Napi::Number runTransportIteration(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    double step_size = caustic_design.perform_transport_iteration();
+
+    Napi::Number returnValue = Napi::Number::New(env, step_size);
 
     return returnValue;
 }
@@ -256,7 +281,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     //export Napi function
     exports.Set("add", Napi::Function::New(env, addWrapped));
     exports.Set("loadImage", Napi::Function::New(env, loadImage));
-    exports.Set("getSolverProgress", Napi::Function::New(env, getSolverProgress));
+    exports.Set("getErrorGrid", Napi::Function::New(env, getErrorGrid));
+    exports.Set("runTransportIteration", Napi::Function::New(env, runTransportIteration));
     return exports;
 }
 

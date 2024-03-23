@@ -64,7 +64,7 @@ void Caustic_design::save_solid_obj_source(const std::string& filename) {
     this->mesh->save_solid_obj_source(thickness, filename);
 }
 
-std::vector<double> vector_subtract(const std::vector<double>& p1, const std::vector<double>& p2) {
+/*std::vector<double> vector_subtract(const std::vector<double>& p1, const std::vector<double>& p2) {
     std::vector<double> difference(p1.size());
     
     for (size_t i = 0; i < p1.size(); ++i) {
@@ -72,9 +72,9 @@ std::vector<double> vector_subtract(const std::vector<double>& p1, const std::ve
     }
 
     return difference;
-}
+}*/
 
-std::vector<double> cross_product(const std::vector<double>& p1, const std::vector<double>& p2) {
+/*std::vector<double> cross_product(const std::vector<double>& p1, const std::vector<double>& p2) {
     std::vector<double> cross(3);
     
     cross[0] = p1[1]*p2[2] - p1[2]*p2[1];
@@ -82,17 +82,17 @@ std::vector<double> cross_product(const std::vector<double>& p1, const std::vect
     cross[2] = p1[0]*p2[1] - p1[1]*p2[0];
 
     return cross;
-}
+}*/
 
-std::vector<double> calculate_normal_from_points(std::vector<double> &p0, std::vector<double> &p1,std::vector<double> &p2) {
+/*std::vector<double> calculate_normal_from_points(std::vector<double> &p0, std::vector<double> &p1,std::vector<double> &p2) {
     std::vector<double> u = vector_subtract(p1, p0);
     std::vector<double> v = vector_subtract(p2, p0);
 
     return cross_product(u, v);
-}
+}*/
 
 // Function to calculate the approximate vertex normal
-std::vector<double> Caustic_design::calculate_vertex_normal(std::vector<std::vector<double>> &points, int vertex_index) {
+/*std::vector<double> Caustic_design::calculate_vertex_normal(std::vector<std::vector<double>> &points, int vertex_index) {
     std::vector<double> avg_normal = {0.0, 0.0, 0.0}; // Initialize normal to zero vector
     
     int left_vtx = NAN;
@@ -145,7 +145,7 @@ std::vector<double> Caustic_design::calculate_vertex_normal(std::vector<std::vec
     }
 
     return avg_normal;
-}
+}*/
 
 void clamp(int &value, int min, int max) {
     value = std::max(std::min(value, max), min);
@@ -184,6 +184,10 @@ double bilinearInterpolation(const std::vector<std::vector<double>>& image, doub
     double top = fx0 * image[y0][x0] + fx1 * image[y0][x1];
     double bottom = fx0 * image[y1][x0] + fx1 * image[y1][x1];
     return fy0 * top + fy1 * bottom;
+}
+
+std::vector<std::vector<double>> Caustic_design::get_error_grid() {
+    return scale_matrix_proportional(this->raster, 0.0f, 1.0f);
 }
 
 double Caustic_design::perform_transport_iteration() {
@@ -295,8 +299,14 @@ void Caustic_design::initialize_solvers() {
     int image_width = static_cast<int>(pixels[0].size());
     int image_height = static_cast<int>(pixels.size());
 
+    errors.clear();
+    target_cells.clear();
+    source_cells.clear();
+    target_areas.clear();
+
     printf("scaled\r\n");
 
+    delete mesh;
     mesh = new Mesh(width, height, mesh_res_x, mesh_res_y);
 
     printf("generated mesh\r\n");
@@ -311,6 +321,7 @@ void Caustic_design::initialize_solvers() {
     //mesh.build_circular_target_dual_cells(circ_target_cells);
 
     //std::vector<double> target_areas = get_target_areas(pixels, circ_target_cells, resolution_x, resolution_y, width, height);
+    target_areas.clear();
     target_areas = get_target_areas(pixels, target_cells, image_width, image_height, width, height);
 
     //export_cells_as_svg(target_cells, scale_array_proportional(target_areas, 0.0f, 1.0f), "../cells.svg");
