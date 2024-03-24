@@ -295,7 +295,7 @@ void Caustic_design::load_image(std::vector<std::vector<double>> image) {
     pixels = scale_matrix_proportional(image, 0, 1.0f);
 }
 
-void Caustic_design::initialize_solvers() {
+void Caustic_design::initialize_transport_solver() {
     int image_width = static_cast<int>(pixels[0].size());
     int image_height = static_cast<int>(pixels.size());
 
@@ -327,13 +327,22 @@ void Caustic_design::initialize_solvers() {
     //export_cells_as_svg(target_cells, scale_array_proportional(target_areas, 0.0f, 1.0f), "../cells.svg");
 
     phi.clear();
-    h.clear();
     for (int i = 0; i < resolution_y; ++i) {
         std::vector<double> row;
         for (int j = 0; j < resolution_x; ++j) {
             row.push_back(0.0f);
         }
         phi.push_back(row);
+    }
+}
+
+void Caustic_design::initialize_height_solver() {
+    h.clear();
+    for (int i = 0; i < resolution_y; ++i) {
+        std::vector<double> row;
+        for (int j = 0; j < resolution_x; ++j) {
+            row.push_back(0.0f);
+        }
         h.push_back(row);
     }
 }

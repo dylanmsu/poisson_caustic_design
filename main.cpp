@@ -167,11 +167,6 @@ std::unordered_map<std::string, std::string> parse_arguments(int argc, char cons
 
 Caustic_design caustic_design;
 
-int mesh_resolution_x = 100;
-int mesh_resolution_y = 100;
-
-double aspect_ratio = 1.0f;
-
 double mesh_width = 1.0f;
 
 int add(int x, int y){
@@ -208,9 +203,28 @@ Napi::Number loadImage(const Napi::CallbackInfo& info)
     }
 
     caustic_design.load_image(pixels_2d);
-    caustic_design.initialize_solvers();
 
     Napi::Number returnValue = Napi::Number::New(env, pixels.size());
+
+    return returnValue;
+}
+
+Napi::Number initializeTransportSolver(const Napi::CallbackInfo& info) {
+    int mesh_resolution_x = info[0].As<Napi::Number>();
+    double aspect_ratio = info[1].As<Napi::Number>();
+
+    caustic_design.set_mesh_resolution(mesh_resolution_x, mesh_resolution_x / aspect_ratio);
+    caustic_design.set_domain_resolution(4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio);
+    caustic_design.set_mesh_size(mesh_width, mesh_width / aspect_ratio);
+
+    caustic_design.set_lens_focal_length(1.0f);
+    caustic_design.set_lens_thickness(0.2f);
+    caustic_design.set_solver_max_threads(8);
+
+    caustic_design.initialize_solvers();
+
+    Napi::Env env = info.Env();
+    Napi::Number returnValue = Napi::Number::New(env, 1.0f);
 
     return returnValue;
 }
@@ -270,19 +284,12 @@ Napi::Number addWrapped(const Napi::CallbackInfo& info) {
 
 Napi::Object Init(Napi::Env env, Napi::Object exports) 
 {
-    caustic_design.set_mesh_resolution(mesh_resolution_x, mesh_resolution_x / aspect_ratio);
-    caustic_design.set_domain_resolution(4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio);
-    caustic_design.set_mesh_size(mesh_width, mesh_width / aspect_ratio);
-
-    caustic_design.set_lens_focal_length(1.0f);
-    caustic_design.set_lens_thickness(0.2f);
-    caustic_design.set_solver_max_threads(8);
-
     //export Napi function
     exports.Set("add", Napi::Function::New(env, addWrapped));
     exports.Set("loadImage", Napi::Function::New(env, loadImage));
     exports.Set("getErrorGrid", Napi::Function::New(env, getErrorGrid));
     exports.Set("runTransportIteration", Napi::Function::New(env, runTransportIteration));
+    exports.Set("initializeTransportSolver", Napi::Function::New(env, initializeTransportSolver));
     return exports;
 }
 

@@ -43,7 +43,8 @@ public:
 
     void perform_height_map_iteration(int itr);
 
-    void initialize_solvers();
+    void initialize_transport_solver();
+    void initialize_height_solver();
 
     void load_image(std::vector<std::vector<double>> image);
 
