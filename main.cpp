@@ -167,8 +167,6 @@ std::unordered_map<std::string, std::string> parse_arguments(int argc, char cons
 
 Caustic_design caustic_design;
 
-double mesh_width = 1.0f;
-
 int add(int x, int y){
  return (x+y);
 }
@@ -204,6 +202,8 @@ Napi::Number loadImage(const Napi::CallbackInfo& info)
 
     caustic_design.load_image(pixels_2d);
 
+    caustic_design.set_solver_max_threads(8);
+
     Napi::Number returnValue = Napi::Number::New(env, pixels.size());
 
     return returnValue;
@@ -212,16 +212,28 @@ Napi::Number loadImage(const Napi::CallbackInfo& info)
 Napi::Number initializeTransportSolver(const Napi::CallbackInfo& info) {
     int mesh_resolution_x = info[0].As<Napi::Number>();
     double aspect_ratio = info[1].As<Napi::Number>();
+    double mesh_width = info[1].As<Napi::Number>();
 
     caustic_design.set_mesh_resolution(mesh_resolution_x, mesh_resolution_x / aspect_ratio);
     caustic_design.set_domain_resolution(4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio);
     caustic_design.set_mesh_size(mesh_width, mesh_width / aspect_ratio);
 
-    caustic_design.set_lens_focal_length(1.0f);
-    caustic_design.set_lens_thickness(0.2f);
-    caustic_design.set_solver_max_threads(8);
+    caustic_design.initialize_transport_solver();
 
-    caustic_design.initialize_solvers();
+    Napi::Env env = info.Env();
+    Napi::Number returnValue = Napi::Number::New(env, 1.0f);
+
+    return returnValue;
+}
+
+Napi::Number initializeHeightSolver(const Napi::CallbackInfo& info) {
+    double focal_l = info[0].As<Napi::Number>();
+    double thickness = info[1].As<Napi::Number>();
+
+    caustic_design.set_lens_focal_length(focal_l);
+    caustic_design.set_lens_thickness(thickness);
+
+    caustic_design.initialize_height_solver();
 
     Napi::Env env = info.Env();
     Napi::Number returnValue = Napi::Number::New(env, 1.0f);
@@ -264,6 +276,16 @@ Napi::Number runTransportIteration(const Napi::CallbackInfo& info) {
     return returnValue;
 }
 
+Napi::Number runHeightIteration(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    double step_size = caustic_design.perform_height_map_iteration();
+
+    Napi::Number returnValue = Napi::Number::New(env, step_size);
+
+    return returnValue;
+}
+
 Napi::Number addWrapped(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
 
@@ -289,6 +311,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     exports.Set("loadImage", Napi::Function::New(env, loadImage));
     exports.Set("getErrorGrid", Napi::Function::New(env, getErrorGrid));
     exports.Set("runTransportIteration", Napi::Function::New(env, runTransportIteration));
+    exports.Set("runHeightIteration", Napi::Function::New(env, runHeightIteration));
+    exports.Set("initializeHeightSolver", Napi::Function::New(env, initializeHeightSolver));
     exports.Set("initializeTransportSolver", Napi::Function::New(env, initializeTransportSolver));
     return exports;
 }

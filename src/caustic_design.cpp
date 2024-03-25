@@ -233,7 +233,7 @@ double Caustic_design::perform_transport_iteration() {
     // step the mesh vertices in the direction of their gradient vector
     min_step = mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.95f);
 
-    mesh->laplacian_smoothing(mesh->target_points, min_step*(resolution_x/width));
+    //mesh->laplacian_smoothing(mesh->target_points, min_step*(resolution_x/width));
     //mesh->laplacian_smoothing(mesh->target_points, 1.0f);
 
     return min_step*(resolution_x/width);
@@ -254,7 +254,7 @@ double Caustic_design::perform_transport_iteration() {
 }*/
 
 // uses uniform grid as caustic surface
-void Caustic_design::perform_height_map_iteration(int itr) {
+double Caustic_design::perform_height_map_iteration() {
     // calculate the target normals
     std::vector<std::vector<double>> normals = mesh->calculate_refractive_normals(resolution_x / width * focal_l, 1.49);
 
@@ -265,7 +265,7 @@ void Caustic_design::perform_height_map_iteration(int itr) {
     std::vector<std::vector<double>> norm_y = mesh->interpolate_raster(normals[1], resolution_x, resolution_y, triangle_miss);
 
     if (triangle_miss) {
-        return;
+        return 0;
     }
 
     // calculates the divergance of the interpolated normals
@@ -288,7 +288,8 @@ void Caustic_design::perform_height_map_iteration(int itr) {
         interpolated_h.push_back(bilinearInterpolation(h, mesh->source_points[i][0] * ((resolution_x) / mesh->width), mesh->source_points[i][1] * ((resolution_y) / mesh->height)));
     }
     double max_update = mesh->set_source_heights(interpolated_h);
-    printf("height max update %.5e\r\n", max_update);
+    
+    return max_update;
 }
 
 void Caustic_design::load_image(std::vector<std::vector<double>> image) {
@@ -304,12 +305,8 @@ void Caustic_design::initialize_transport_solver() {
     source_cells.clear();
     target_areas.clear();
 
-    printf("scaled\r\n");
-
     delete mesh;
     mesh = new Mesh(width, height, mesh_res_x, mesh_res_y);
-
-    printf("generated mesh\r\n");
 
     //mesh->export_to_svg("../mesh.svg", 1);
 
@@ -345,4 +342,11 @@ void Caustic_design::initialize_height_solver() {
         }
         h.push_back(row);
     }
+
+    std::vector<double> surface_h;
+    for (int i=0; i<mesh->source_points.size(); i++) {
+        surface_h.push_back(0.0f);
+    }
+
+    mesh->set_source_heights(surface_h);
 }

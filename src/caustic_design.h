@@ -40,8 +40,7 @@ public:
     std::vector<double> calculate_vertex_normal(std::vector<std::vector<double>> &points, int vertex_index);
 
     double perform_transport_iteration();
-
-    void perform_height_map_iteration(int itr);
+    double perform_height_map_iteration();
 
     void initialize_transport_solver();
     void initialize_height_solver();

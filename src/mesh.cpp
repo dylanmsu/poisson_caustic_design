@@ -476,6 +476,11 @@ double Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>
 }
 
 void Mesh::laplacian_smoothing(std::vector<std::vector<double>> &points, double smoothing_factor) {
+
+    if (smoothing_factor < 0.0f) {smoothing_factor = 0.0f;}
+    if (smoothing_factor > 1.0f) {smoothing_factor = 1.0f;}
+
+
     std::vector<std::vector<double>> points_copy;
     for (int i = 0; i < points.size(); i++) {
         int y = i / res_x;
