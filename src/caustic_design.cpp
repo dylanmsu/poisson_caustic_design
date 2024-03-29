@@ -29,6 +29,10 @@ void Caustic_design::export_paramererization_to_svg(const std::string& filename,
     mesh->export_paramererization_to_svg(filename, line_width);
 }
 
+std::string Caustic_design::export_paramererization_to_svg_string(double stroke_width) {
+    return mesh->export_paramererization_to_svg_string(stroke_width);
+}
+
 void Caustic_design::set_mesh_resolution(int width, int height) {
     this->mesh_res_x = width;
     this->mesh_res_y = height;
@@ -192,7 +196,6 @@ std::vector<std::vector<double>> Caustic_design::get_error_grid() {
 
 double Caustic_design::perform_transport_iteration() {
     std::vector<std::vector<double>> vertex_gradient;
-    double min_step;
 
     // build median dual mesh of the updated parameterization
     target_cells.clear();
@@ -230,13 +233,31 @@ double Caustic_design::perform_transport_iteration() {
     // integrate the gradient grid into the dual cells of the vertices (slower but better contrast)
     vertex_gradient = integrate_cell_gradients(gradient, target_cells, resolution_x, resolution_y, width, height);
 
+    std::vector<std::vector<double>> old_points;
+
+    std::copy(mesh->target_points.begin(), mesh->target_points.end(), back_inserter(old_points));
+
     // step the mesh vertices in the direction of their gradient vector
-    min_step = mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.95f);
+    mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.95f);
 
     //mesh->laplacian_smoothing(mesh->target_points, min_step*(resolution_x/width));
-    //mesh->laplacian_smoothing(mesh->target_points, 1.0f);
+    mesh->laplacian_smoothing(mesh->target_points, min_step*10.0f);
 
-    return min_step*(resolution_x/width);
+    min_step = 0.0f;
+
+    for (int i=0; i<old_points.size(); i++) {
+        double dx = (old_points[i][0] - mesh->target_points[i][0]);
+        double dy = (old_points[i][1] - mesh->target_points[i][1]);
+        double dz = (old_points[i][2] - mesh->target_points[i][2]);
+
+        double dist = sqrt(dx*dx + dy*dy + dz*dz);
+
+        if (min_step < dist) {
+            min_step = dist;
+        }
+    }
+
+    return min_step*(width);
 }
 
 // normalize a vector such that its length equals 1

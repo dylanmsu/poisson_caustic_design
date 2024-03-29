@@ -87,6 +87,8 @@ class Mesh {
         void laplacian_smoothing(std::vector<std::vector<double>> &points, double smoothing_factor);
 
         void get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_vertex, int &top_vertex, int &bottom_vertex);
+
+        std::string export_paramererization_to_svg_string(double stroke_width);
 };
 
 #endif

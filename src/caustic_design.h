@@ -7,7 +7,7 @@
 class Caustic_design
 {
 private:
-    /* data */
+    double min_step = 1.0f;
 
 public:
     Caustic_design(/* args */);
@@ -64,6 +64,8 @@ public:
     double get_solver_progress();
 
     std::vector<std::vector<double>> get_error_grid();
+
+    std::string export_paramererization_to_svg_string(double stroke_width);
 };
 
 #endif // _CAUSTIC_DESIGN_H

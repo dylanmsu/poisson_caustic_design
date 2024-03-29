@@ -558,6 +558,10 @@ void Mesh::export_paramererization_to_svg(std::string filename, double stroke_wi
     export_grid_to_svg(this->target_points, this->width, this->height, this->res_x, this->res_y, filename, stroke_width);
 }
 
+std::string Mesh::export_paramererization_to_svg_string(double stroke_width) {
+    return grid_to_svg_string(this->target_points, this->width, this->height, this->res_x, this->res_y, stroke_width);
+}
+
 /*std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal_len, double refractive_index) {
     std::vector<double> x_normals;
     std::vector<double> y_normals;

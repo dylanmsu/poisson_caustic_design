@@ -195,7 +195,7 @@ Napi::Number loadImage(const Napi::CallbackInfo& info)
     for (int y = 0; y < height; y++) {
         std::vector<double> row;
         for (int x = 0; x < width; x++) {
-            row.push_back(pixels[y * width + x]);
+            row.push_back(pixels[x * height + y]);
         }
         pixels_2d.push_back(row);
     }
@@ -304,6 +304,13 @@ Napi::Number addWrapped(const Napi::CallbackInfo& info) {
   return returnValue;
 }
 
+Napi::String getParameterizationSvg(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    std::string svg_data = caustic_design.export_paramererization_to_svg_string(1.0f);
+
+    return Napi::String::New(env, svg_data);
+}
 Napi::Object Init(Napi::Env env, Napi::Object exports) 
 {
     //export Napi function
@@ -314,6 +321,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     exports.Set("runHeightIteration", Napi::Function::New(env, runHeightIteration));
     exports.Set("initializeHeightSolver", Napi::Function::New(env, initializeHeightSolver));
     exports.Set("initializeTransportSolver", Napi::Function::New(env, initializeTransportSolver));
+    exports.Set("getParameterizationSvg", Napi::Function::New(env, getParameterizationSvg));
     return exports;
 }
 

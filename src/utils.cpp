@@ -405,6 +405,60 @@ void export_grid_to_svg(std::vector<std::vector<double>> &points, double width, 
     svg_file.close();
 }
 
+std::string grid_to_svg_string(std::vector<std::vector<double>> &points, double width, double height, int res_x, int res_y, double stroke_width) {
+    std::string svg_string;
+
+    // Write SVG header
+    svg_string.append("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n");
+    svg_string.append("<svg width=\"1000\" height=\"");
+    svg_string.append(std::to_string(1000.0f * (height / width)));
+    svg_string.append("\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n");
+
+    svg_string.append("<rect width=\"100%\" height=\"100%\" fill=\"white\"/>\n");
+
+    for (int j = 0; j < res_y; j++) {
+        std::string path_str = "M";
+        for (int i = 0; i < res_x; i++) {
+            int idx = i + j * res_x;
+
+            const auto& point = points[idx];
+            path_str += std::to_string((point[0] / width) * 1000.0f) + "," +
+                        std::to_string((point[1] / height) * 1000.0f * (height / width));
+
+            if (i < res_x - 1)
+                path_str += "L";
+        }
+        svg_string.append("<path d=\"");
+        svg_string.append(path_str);
+        svg_string.append("\" fill=\"none\" stroke=\"black\" stroke-width=\"");
+        svg_string.append(std::to_string(stroke_width));
+        svg_string.append("\"/>\n");
+    }
+
+    for (int j = 0; j < res_x; j++) {
+        std::string path_str = "M";
+        for (int i = 0; i < res_y; i++) {
+            int idx = j + i * res_x;
+
+            const auto& point = points[idx];
+            path_str += std::to_string((point[0] / width) * 1000.0f) + "," +
+                        std::to_string((point[1] / height) * 1000.0f * (height / width));
+
+            if (i < res_x - 1)
+                path_str += "L";
+        }
+        svg_string.append("<path d=\"");
+        svg_string.append(path_str);
+        svg_string.append("\" fill=\"none\" stroke=\"black\" stroke-width=\"");
+        svg_string.append(std::to_string(stroke_width));
+        svg_string.append("\"/>\n");
+    }
+
+    // Write SVG footer
+    svg_string.append("</svg>\n");
+    return svg_string;
+}
+
 void export_triangles_to_svg(std::vector<std::vector<double>> &points, std::vector<std::vector<int>> &triangles, double width, double height, int res_x, int res_y, std::string filename, double stroke_width) {
     std::ofstream svg_file(filename, std::ios::out);
     if (!svg_file.is_open()) {
