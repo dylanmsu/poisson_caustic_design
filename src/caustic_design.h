@@ -45,7 +45,7 @@ public:
     void initialize_transport_solver();
     void initialize_height_solver();
 
-    void load_image(std::vector<std::vector<double>> image);
+    void load_image(std::vector<std::vector<double>> &image);
 
     void set_mesh_resolution(int width, int heigth);
     void set_domain_resolution(int width, int heigth);
@@ -56,6 +56,9 @@ public:
 
     void save_solid_obj_target(const std::string& filename);
     void save_solid_obj_source(const std::string& filename);
+
+    std::string save_solid_obj_source_string();
+    std::string save_solid_obj_target_string();
 
     void export_paramererization_to_svg(const std::string& filename, double line_width);
 

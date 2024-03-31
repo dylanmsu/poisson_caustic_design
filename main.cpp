@@ -191,6 +191,8 @@ Napi::Number loadImage(const Napi::CallbackInfo& info)
         }
     }
 
+    pixels = scale_array_proportional(pixels, 0.0f, 1.0f);
+
     std::vector<std::vector<double>> pixels_2d;
     for (int y = 0; y < height; y++) {
         std::vector<double> row;
@@ -202,7 +204,7 @@ Napi::Number loadImage(const Napi::CallbackInfo& info)
 
     caustic_design.load_image(pixels_2d);
 
-    caustic_design.set_solver_max_threads(8);
+    caustic_design.set_solver_max_threads(16);
 
     Napi::Number returnValue = Napi::Number::New(env, pixels.size());
 
@@ -287,21 +289,21 @@ Napi::Number runHeightIteration(const Napi::CallbackInfo& info) {
 }
 
 Napi::Number addWrapped(const Napi::CallbackInfo& info) {
-  Napi::Env env = info.Env();
+    Napi::Env env = info.Env();
 
-  //check if arguments are integer only.
-  if(info.Length()<2 || !info[0].IsNumber() || !info[1].IsNumber()){
-      Napi::TypeError::New(env, "arg1::Number, arg2::Number expected").ThrowAsJavaScriptException();
-  }
+    //check if arguments are integer only.
+    if(info.Length()<2 || !info[0].IsNumber() || !info[1].IsNumber()){
+        Napi::TypeError::New(env, "arg1::Number, arg2::Number expected").ThrowAsJavaScriptException();
+    }
 
-  //convert javascripts datatype to c++
-  Napi::Number first = info[0].As<Napi::Number>();
-  Napi::Number second = info[1].As<Napi::Number>();
+    //convert javascripts datatype to c++
+    Napi::Number first = info[0].As<Napi::Number>();
+    Napi::Number second = info[1].As<Napi::Number>();
 
-  //run c++ function return value and return it in javascript
-  Napi::Number returnValue = Napi::Number::New(env, add(first.Int32Value(), second.Int32Value()));
-  
-  return returnValue;
+    //run c++ function return value and return it in javascript
+    Napi::Number returnValue = Napi::Number::New(env, add(first.Int32Value(), second.Int32Value()));
+    
+    return returnValue;
 }
 
 Napi::String getParameterizationSvg(const Napi::CallbackInfo& info) {
@@ -311,6 +313,15 @@ Napi::String getParameterizationSvg(const Napi::CallbackInfo& info) {
 
     return Napi::String::New(env, svg_data);
 }
+
+Napi::String getObjString(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    std::string obj_data = caustic_design.save_solid_obj_target_string();
+
+    return Napi::String::New(env, obj_data);
+}
+
 Napi::Object Init(Napi::Env env, Napi::Object exports) 
 {
     //export Napi function
@@ -322,6 +333,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     exports.Set("initializeHeightSolver", Napi::Function::New(env, initializeHeightSolver));
     exports.Set("initializeTransportSolver", Napi::Function::New(env, initializeTransportSolver));
     exports.Set("getParameterizationSvg", Napi::Function::New(env, getParameterizationSvg));
+    exports.Set("getObjString", Napi::Function::New(env, getObjString));
     return exports;
 }
 

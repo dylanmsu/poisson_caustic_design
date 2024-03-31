@@ -28,5 +28,6 @@ std::string grid_to_svg_string(std::vector<std::vector<double>> &points, double 
 
 // 3d export
 void save_solid_obj(std::vector<std::vector<double>> &front_points, std::vector<std::vector<double>> &back_points, std::vector<std::vector<int>> &triangles, double thickness, double width, double height, int res_x, int res_y, const std::string& filename);
+std::string save_solid_obj_string(std::vector<std::vector<double>> &front_points, std::vector<std::vector<double>> &back_points, std::vector<std::vector<int>> &triangles, double thickness, double width, double height, int res_x, int res_y);
 
 #endif

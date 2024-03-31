@@ -68,6 +68,14 @@ void Caustic_design::save_solid_obj_source(const std::string& filename) {
     this->mesh->save_solid_obj_source(thickness, filename);
 }
 
+std::string Caustic_design::save_solid_obj_source_string() {
+    return mesh->save_solid_obj_source_string(thickness);
+}
+
+std::string Caustic_design::save_solid_obj_target_string() {
+    return mesh->save_solid_obj_target_string(thickness);
+}
+
 /*std::vector<double> vector_subtract(const std::vector<double>& p1, const std::vector<double>& p2) {
     std::vector<double> difference(p1.size());
     
@@ -296,25 +304,24 @@ double Caustic_design::perform_height_map_iteration() {
     // solve the poisson equation for the divergance
     poisson_solver(divergence, h, resolution_x, resolution_y, 100000, 0.0000001, nthreads);
 
-    /*std::vector<double> interpolated_h;
+    std::vector<double> interpolated_h;
     for (int i=0; i<mesh->target_points.size(); i++) {
         interpolated_h.push_back(bilinearInterpolation(h, mesh->target_points[i][0] * ((resolution_x) / mesh->width), mesh->target_points[i][1] * ((resolution_y) / mesh->height)));
     }
-    double max_update = mesh->set_target_heights(interpolated_h);
-    printf("height max update %.5e\r\n", max_update);*/
+    double max_update = mesh->set_target_heights(interpolated_h);//*/
 
     // get the heights on the vertex positions
-    std::vector<double> interpolated_h;
+    /*std::vector<double> interpolated_h;
     for (int i=0; i<mesh->source_points.size(); i++) {
         interpolated_h.push_back(bilinearInterpolation(h, mesh->source_points[i][0] * ((resolution_x) / mesh->width), mesh->source_points[i][1] * ((resolution_y) / mesh->height)));
     }
-    double max_update = mesh->set_source_heights(interpolated_h);
+    double max_update = mesh->set_source_heights(interpolated_h);*/
     
     return max_update;
 }
 
-void Caustic_design::load_image(std::vector<std::vector<double>> image) {
-    pixels = scale_matrix_proportional(image, 0, 1.0f);
+void Caustic_design::load_image(std::vector<std::vector<double>> &image) {
+    pixels = scale_matrix_proportional(image, 0.0f, 1.0f);
 }
 
 void Caustic_design::initialize_transport_solver() {
@@ -365,9 +372,9 @@ void Caustic_design::initialize_height_solver() {
     }
 
     std::vector<double> surface_h;
-    for (int i=0; i<mesh->source_points.size(); i++) {
+    for (int i=0; i<mesh->target_points.size(); i++) {
         surface_h.push_back(0.0f);
     }
 
-    mesh->set_source_heights(surface_h);
+    mesh->set_target_heights(surface_h);
 }

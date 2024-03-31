@@ -673,8 +673,16 @@ void Mesh::save_solid_obj_source(double thickness, const std::string& filename) 
     save_solid_obj(this->source_points, this->source_points, this->triangles, thickness, this->width, this->height, this->res_x, this->res_y, filename);
 }
 
+std::string Mesh::save_solid_obj_source_string(double thickness) {
+    return save_solid_obj_string(this->source_points, this->source_points, this->triangles, thickness, this->width, this->height, this->res_x, this->res_y);
+}
+
 void Mesh::save_solid_obj_target(double thickness, const std::string& filename) {
     save_solid_obj(this->target_points, this->source_points, this->triangles, thickness, this->width, this->height, this->res_x, this->res_y, filename);
+}
+
+std::string Mesh::save_solid_obj_target_string(double thickness) {
+    return save_solid_obj_string(this->target_points, this->source_points, this->triangles, thickness, this->width, this->height, this->res_x, this->res_y);
 }
 
 void Mesh::get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_vertex, int &top_vertex, int &bottom_vertex) {

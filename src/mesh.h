@@ -76,6 +76,9 @@ class Mesh {
         void save_solid_obj_target(double thickness, const std::string& filename);
         void save_solid_obj_source(double thickness, const std::string& filename);
 
+        std::string save_solid_obj_source_string(double thickness);
+        std::string save_solid_obj_target_string(double thickness);
+
         void calculate_inverted_transport_map(std::string filename, double stroke_width);
 
         void build_target_dual_cells_circ(std::vector<std::vector<point_t>> &cells);
