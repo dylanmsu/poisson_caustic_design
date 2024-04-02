@@ -76,20 +76,13 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
 
     double initial_max_update = 0.0f;
 
-    num_threads = fmin(max_threads, num_threads);
+    num_threads = fmin(1, num_threads);
 
     // process grid into all equal subsets
     int num_segments_x = floor(sqrt(num_threads));
     int num_segments_y = num_segments_x;
 
     std::vector<std::thread> threads(num_segments_x * num_segments_y);
-    
-    // set the initial guess for the solution to all zero's -> removed
-    /*for (int i=0; i<width; i++) {
-        for (int j=0; j<width; j++) {
-            output[j][i] = 0.0f;
-        }
-    }*/
 
     for (int i = 0; i < max_iterations; i++) {
         double max_update = 0.0;

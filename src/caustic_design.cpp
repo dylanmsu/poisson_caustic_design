@@ -301,6 +301,13 @@ double Caustic_design::perform_height_map_iteration() {
     std::vector<std::vector<double>> divergence = calculate_divergence(norm_x, norm_y, resolution_x, resolution_y);
     subtractAverage(divergence);
 
+    // set the initial guess for the solution to all zero's -> removed
+    for (int i=0; i<width; i++) {
+        for (int j=0; j<width; j++) {
+            h[j][i] = 0.0f;
+        }
+    }
+
     // solve the poisson equation for the divergance
     poisson_solver(divergence, h, resolution_x, resolution_y, 100000, 0.0000001, nthreads);
 
