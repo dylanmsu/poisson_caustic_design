@@ -559,7 +559,49 @@ void Mesh::export_paramererization_to_svg(std::string filename, double stroke_wi
 }
 
 std::string Mesh::export_paramererization_to_svg_string(double stroke_width) {
-    return grid_to_svg_string(this->target_points, this->width, this->height, this->res_x, this->res_y, stroke_width);
+    std::vector<std::vector<double>> input_points;
+
+    double epsilon = 1e-6;//std::numeric_limits<float>::epsilon();
+
+    int preview_width = res_x;
+    int preview_height = preview_width / (this->width / this->height);
+    
+    /*for (int i = 0; i < preview_height; ++i) {
+        for (int j = 0; j < preview_width; ++j) {
+            double x = static_cast<double>(j) * (this->width - epsilon) / (preview_width - 1) + 0.5 * epsilon;
+            double y = static_cast<double>(i) * (this->height - epsilon) / (preview_height - 1) + 0.5 * epsilon;
+            input_points.push_back({x, y, 0.0});
+        }
+    }
+
+    build_bvh(5, 30);
+    std::vector<std::vector<double>> inverted_points;
+    for (int i=0; i<input_points.size(); ++i) {
+        std::vector<double> point = input_points[i];
+        Hit hit;
+        bool intersection = false;
+        target_bvh->query(point, hit, intersection);
+        if (intersection) {
+            std::vector<std::vector<double>> vertex_values;
+            vertex_values.push_back(input_points[this->triangles[hit.face_id][0]]);
+            vertex_values.push_back(input_points[this->triangles[hit.face_id][1]]);
+            vertex_values.push_back(input_points[this->triangles[hit.face_id][2]]);
+            
+            double interpolation_x = 
+                vertex_values[0][0]*hit.barycentric_coords[0] + 
+                vertex_values[1][0]*hit.barycentric_coords[1] + 
+                vertex_values[2][0]*hit.barycentric_coords[2];
+
+            double interpolation_y = 
+                vertex_values[0][1]*hit.barycentric_coords[0] + 
+                vertex_values[1][1]*hit.barycentric_coords[1] + 
+                vertex_values[2][1]*hit.barycentric_coords[2];
+
+            inverted_points.push_back({interpolation_x, interpolation_y});
+        }
+    }*/
+
+    return grid_to_svg_string(target_points, this->width, this->height, preview_width, preview_height, stroke_width);
 }
 
 /*std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal_len, double refractive_index) {

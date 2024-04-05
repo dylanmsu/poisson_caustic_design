@@ -76,7 +76,7 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
 
     double initial_max_update = 0.0f;
 
-    num_threads = fmin(1, num_threads);
+    num_threads = fmin(max_threads, num_threads);
 
     // process grid into all equal subsets
     int num_segments_x = floor(sqrt(num_threads));
@@ -104,11 +104,12 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
         // Create tasks to process the grid in equal chunks
         for (int y = 0; y < num_segments_y; y++) {
             for (int x = 0; x < num_segments_x; x++) {
+                //threads[num_segments_y * x + y] = std::thread(process_grid_part,0,0,width, height);
                 threads[num_segments_y * x + y] = std::thread(process_grid_part, 
-                    x * (width/num_segments_x),
-                    y * (height/num_segments_y),
-                    (x + 1) * (width/num_segments_x),
-                    (y + 1) * (height/num_segments_y));
+                    floor(((double)(x)) * ((double)(width/num_segments_x))),
+                    floor(((double)(y)) * ((double)(height/num_segments_y))),
+                    ceil(((double)(x + 1)) * ((double)(width/num_segments_x))),
+                    ceil(((double)(y + 1)) * ((double)(height/num_segments_y))));
             }
         }
 

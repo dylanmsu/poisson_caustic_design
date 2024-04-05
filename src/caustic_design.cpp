@@ -10,7 +10,7 @@ Caustic_design::Caustic_design(/* args */)
     this->height = 0.0f;
     this->focal_l = 0.0f;
     this->thickness = 0.0f;
-    this->nthreads = 0;
+    this->nthreads = 1;
 }
 
 Caustic_design::~Caustic_design()
@@ -311,18 +311,18 @@ double Caustic_design::perform_height_map_iteration() {
     // solve the poisson equation for the divergance
     poisson_solver(divergence, h, resolution_x, resolution_y, 100000, 0.0000001, nthreads);
 
-    std::vector<double> interpolated_h;
+    /*std::vector<double> interpolated_h;
     for (int i=0; i<mesh->target_points.size(); i++) {
         interpolated_h.push_back(bilinearInterpolation(h, mesh->target_points[i][0] * ((resolution_x) / mesh->width), mesh->target_points[i][1] * ((resolution_y) / mesh->height)));
     }
     double max_update = mesh->set_target_heights(interpolated_h);//*/
 
     // get the heights on the vertex positions
-    /*std::vector<double> interpolated_h;
+    std::vector<double> interpolated_h;
     for (int i=0; i<mesh->source_points.size(); i++) {
         interpolated_h.push_back(bilinearInterpolation(h, mesh->source_points[i][0] * ((resolution_x) / mesh->width), mesh->source_points[i][1] * ((resolution_y) / mesh->height)));
     }
-    double max_update = mesh->set_source_heights(interpolated_h);*/
+    double max_update = mesh->set_source_heights(interpolated_h);//*/
     
     return max_update;
 }

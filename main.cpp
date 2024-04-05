@@ -204,7 +204,7 @@ Napi::Number loadImage(const Napi::CallbackInfo& info)
 
     caustic_design.load_image(pixels_2d);
 
-    caustic_design.set_solver_max_threads(16);
+    caustic_design.set_solver_max_threads(1);
 
     Napi::Number returnValue = Napi::Number::New(env, pixels.size());
 
@@ -214,7 +214,7 @@ Napi::Number loadImage(const Napi::CallbackInfo& info)
 Napi::Number initializeTransportSolver(const Napi::CallbackInfo& info) {
     int mesh_resolution_x = info[0].As<Napi::Number>();
     double aspect_ratio = info[1].As<Napi::Number>();
-    double mesh_width = info[1].As<Napi::Number>();
+    double mesh_width = info[2].As<Napi::Number>();
 
     caustic_design.set_mesh_resolution(mesh_resolution_x, mesh_resolution_x / aspect_ratio);
     caustic_design.set_domain_resolution(4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio);
@@ -317,7 +317,7 @@ Napi::String getParameterizationSvg(const Napi::CallbackInfo& info) {
 Napi::String getObjString(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
 
-    std::string obj_data = caustic_design.save_solid_obj_target_string();
+    std::string obj_data = caustic_design.save_solid_obj_source_string();
 
     return Napi::String::New(env, obj_data);
 }
