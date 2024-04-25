@@ -208,7 +208,7 @@ void Bvh::intersectNode(int nodeId, std::vector<double> &point, Hit &hit, bool &
                 double eps = 1e-12;
                 
                 if (calculate_polygon_area_vec(triangle) <= eps) {
-                    printf("Triangle has negative area!\r\n");
+                    //printf("Triangle has negative area!\r\n");
                     //continue;
                 }
 

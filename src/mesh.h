@@ -35,6 +35,7 @@ class Mesh {
 
         // stores the BVH tree for the target mesh
         Bvh *target_bvh;
+        Bvh *source_bvh;
 
         void generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<point_t> &points);
         void build_vertex_to_triangles();
@@ -59,24 +60,29 @@ class Mesh {
         void export_paramererization_to_svg(std::string filename, double stroke_width);
 
         std::vector<std::vector<double>> get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points);
+        
         void build_target_dual_cells(std::vector<std::vector<point_t>> &cells);
         void build_source_dual_cells(std::vector<std::vector<point_t>> &cells);
 
-        std::vector<std::vector<double>> interpolate_raster(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss);
+        std::vector<std::vector<double>> interpolate_raster_target(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss);
+        std::vector<std::vector<double>> interpolate_raster_source(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss);
 
         double step_grid(const std::vector<double>& dfx, const std::vector<double>& dfy, double step_size);
 
-        void build_bvh(int targetCellSize, int maxDepth);
+        void build_target_bvh(int targetCellSize, int maxDepth);
+        void build_source_bvh(int targetCellSize, int maxDepth);
 
         std::vector<std::vector<double>> calculate_refractive_normals(double focal_len, double refractive_index);
+        std::vector<std::vector<double>> calculate_refractive_normals_uniform(double focal_len, double refractive_index);
 
         double set_source_heights(std::vector<double> heights);
         double set_target_heights(std::vector<double> heights);
 
         void save_solid_obj_target(double thickness, const std::string& filename);
         void save_solid_obj_source(double thickness, const std::string& filename);
-
-        void calculate_inverted_transport_map(std::string filename, double stroke_width);
+        
+        std::vector<std::vector<double>> calculate_inverted_transport_map();
+        void calculate_and_export_inverted_transport_map(std::string filename, double stroke_width);
 
         void build_target_dual_cells_circ(std::vector<std::vector<point_t>> &cells);
 

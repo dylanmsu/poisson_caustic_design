@@ -23,6 +23,9 @@ public:
     std::vector<std::vector<double>> raster;
     std::vector<std::vector<std::vector<double>>> gradient;
     std::vector<std::vector<double>> h;
+    std::vector<std::vector<double>> divergence;
+    std::vector<std::vector<double>> norm_x;
+    std::vector<std::vector<double>> norm_y;
 
     int mesh_res_x;
     int mesh_res_y;

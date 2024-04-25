@@ -23,16 +23,22 @@ Mesh::Mesh(double width, double height, int res_x, int res_y)
 
     // Create instance of the bvh class used for interpolation
     target_bvh = new Bvh(triangles, target_points);
+    source_bvh = new Bvh(triangles, source_points);
 }
 
 Mesh::~Mesh()
 {
     delete(target_bvh);
+    delete(source_bvh);
 }
 
 // Build the BVH tree for the target mesh
-void Mesh::build_bvh(int targetCellSize, int maxDepth) {
+void Mesh::build_target_bvh(int targetCellSize, int maxDepth) {
     target_bvh->build(targetCellSize, maxDepth);
+}
+
+void Mesh::build_source_bvh(int targetCellSize, int maxDepth) {
+    source_bvh->build(targetCellSize, maxDepth);
 }
 
 // generates a structured triangulation used for the parameterization
@@ -270,8 +276,8 @@ void Mesh::build_circular_target_dual_cells(std::vector<std::vector<point_t>> &c
 }
 
 // interpolate target mesh into a rectangular grid
-std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss) {
-    build_bvh(5, 30);
+std::vector<std::vector<double>> Mesh::interpolate_raster_target(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss) {
+    build_target_bvh(5, 30);
     
     // Generate x and y vectors
     std::vector<double> x(res_x);
@@ -326,12 +332,78 @@ std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<doub
     return raster;
 }
 
+// interpolate target mesh into a rectangular grid
+std::vector<std::vector<double>> Mesh::interpolate_raster_source(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss) {
+    build_source_bvh(5, 30);
+    
+    // Generate x and y vectors
+    std::vector<double> x(res_x);
+    std::vector<double> y(res_y);
+
+    double epsilon = 1e-6;//std::numeric_limits<float>::epsilon();
+
+    for (int i = 0; i < res_x; ++i) {
+        //x[i] = ((static_cast<double>(i) + 1) / res_x) * width - (1 * width) / (res_x);
+        x[i] = static_cast<double>(i) * (width - epsilon) / (res_x - 1) + 0.5 * epsilon;
+        //x[i] = (static_cast<double>(i) + 1) * width / (res_x);
+        //x[i] = x[i] - 0.000001 / res_x;
+    }
+
+    for (int i = 0; i < res_y; ++i) {
+        //y[i] = static_cast<double>(i) * height / (res_y - 1);
+        y[i] = static_cast<double>(i) * (height - epsilon) / (res_y - 1) + 0.5 * epsilon;
+        //y[i] = y[i] - 0.000001 / res_y;
+    }
+
+    // Generate raster
+    std::vector<std::vector<double>> raster;
+    for (int i = 0; i < res_y; ++i) {
+        std::vector<double> row;
+        for (int j = 0; j < res_x; ++j) {
+            point_t point = {x[j], y[i]};
+            Hit hit;
+            bool intersection = false;
+            source_bvh->query(point, hit, intersection);
+            if (intersection) {
+                std::vector<double> vertex_values;
+                vertex_values.reserve(3);
+                for (int k = 0; k < 3; ++k)
+                    vertex_values.push_back(errors[triangles[hit.face_id][k]]);
+                double interpolation = 
+                    vertex_values[0]*hit.barycentric_coords[0] + 
+                    vertex_values[1]*hit.barycentric_coords[1] + 
+                    vertex_values[2]*hit.barycentric_coords[2];
+                row.push_back(interpolation);
+                triangle_miss = false;
+            } else {
+                printf("interpolation miss!\r\n");
+                printf("x: %f, y: %f\r\n", point[0], point[1]);
+                exit(0);
+                triangle_miss = true;
+                row.push_back(NAN);
+            }
+        }
+        raster.push_back(row);
+    }
+
+    return raster;
+}
+
 // exports the inverted transport map as svg (mesh where its density distrbution is dependent on the image intensity)
-void Mesh::calculate_inverted_transport_map(std::string filename, double stroke_width) {
-    build_bvh(5, 30);
+std::vector<std::vector<double>> Mesh::calculate_inverted_transport_map() {
+    build_target_bvh(5, 30);
+
+    double epsilon = 1e-6;//std::numeric_limits<float>::epsilon();
+
     std::vector<std::vector<double>> inverted_points;
     for (int i=0; i<this->source_points.size(); ++i) {
-        std::vector<double> point = this->source_points[i];
+        
+        std::vector<double> point = {
+            epsilon + this->source_points[i][0] * ((width - 2*epsilon) / width), 
+            epsilon + this->source_points[i][1] * ((height - 2*epsilon) / height), 
+            this->source_points[i][2]
+        };
+
         Hit hit;
         bool intersection = false;
         target_bvh->query(point, hit, intersection);
@@ -351,10 +423,38 @@ void Mesh::calculate_inverted_transport_map(std::string filename, double stroke_
                 vertex_values[1][1]*hit.barycentric_coords[1] + 
                 vertex_values[2][1]*hit.barycentric_coords[2];
 
-            inverted_points.push_back({interpolation_x, interpolation_y});
+            int y = i / res_x;
+            int x = i % res_x;
+
+            if (x == 0 && y == 0) {
+                inverted_points.push_back({0, 0});
+            } else if (x == 0 && y == res_y - 1) {
+                inverted_points.push_back({0, height});
+            } else if (x == res_x - 1 && y == 0) {
+                inverted_points.push_back({width, 0});
+            } else if (x == res_x - 1 && y == res_y - 1) {
+                inverted_points.push_back({width, height});
+            } else if (x == 0 && (y != 0 && y != res_y - 1)) {
+                inverted_points.push_back({0, interpolation_y});
+            } else if (x == res_x - 1 && (y != 0 && y != res_y - 1)) {
+                inverted_points.push_back({width, interpolation_y});
+            } else if (y == 0 && (x != 0 && x != res_x - 1)) {
+                inverted_points.push_back({interpolation_x, 0});
+            } else if (y == res_y - 1 && (x != 0 && x != res_x - 1)) {
+                inverted_points.push_back({interpolation_x, height});
+            } else if (x != 0 && x != res_x - 1 && y != 0 && y != res_y - 1) {
+                inverted_points.push_back({interpolation_x, interpolation_y});
+            }
+
+            //inverted_points.push_back({interpolation_x, interpolation_y});
         }
     }
 
+    return inverted_points;
+}
+
+void Mesh::calculate_and_export_inverted_transport_map(std::string filename, double stroke_width) {
+    std::vector<std::vector<double>> inverted_points = calculate_inverted_transport_map();
     export_grid_to_svg(inverted_points, this->width, this->height, this->res_x, this->res_y, filename, stroke_width);
 }
 
@@ -463,7 +563,8 @@ double Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>
         velocities[i][1] -= regularization_term * velocities[i][1];
     }*/
 
-    double min_t = find_min_delta_t(velocities);
+    //double min_t = find_min_delta_t(velocities);
+    double min_t = 0.1 * (width/res_x);
     //std::cout << "min_t = " << min_t << std::endl;
 
     // Move vertices along the gradient
@@ -607,6 +708,54 @@ std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal
             this->source_points[i][0] - this->target_points[i][0],
             this->source_points[i][1] - this->target_points[i][1],
             this->source_points[i][2] + this->target_points[i][2] + focal_len
+        };
+
+        //std::vector<double> incident = {0.0f, 0.0f, 0.0f};
+        //incident[0] = this->target_points[i][0] - point_src[0];
+        //incident[1] = this->target_points[i][1] - point_src[1];
+        //incident[2] = this->target_points[i][2] - point_src[2];
+
+        normalize(transmitted);
+        normalize(incident);
+
+        // t - µi
+        double x_normal = transmitted[0] - incident[0] * refractive_index;
+        double y_normal = transmitted[1] - incident[1] * refractive_index;
+        double z_normal = transmitted[2] - incident[2] * refractive_index;
+
+        // (t - µi) / ||(t - µi)||
+        x_normals.push_back(x_normal / z_normal);
+        y_normals.push_back(y_normal / z_normal);
+        z_normals.push_back(z_normal / z_normal);
+    }
+
+    return {x_normals, y_normals, z_normals};
+}
+
+// calculate target vertex normals for refractive caustics
+std::vector<std::vector<double>> Mesh::calculate_refractive_normals_uniform(double focal_len, double refractive_index) {
+    std::vector<std::vector<double>> inverted_points = calculate_inverted_transport_map();
+    
+    std::vector<double> x_normals;
+    std::vector<double> y_normals;
+    std::vector<double> z_normals;
+
+    // n = (t - µi) / ||(t - µi)||
+    // where:
+    // n = surface normal
+    // t = transmitted ray normal
+    // i = incident ray normal
+    // µ = refraction coefficient
+
+    //std::vector<double> point_src = {0, 0, -20.0f};
+
+    std::vector<double> incident = {0.0f, 0.0f, 1.0f};
+
+    for (int i=0; i<this->target_points.size(); i++) {
+        std::vector<double> transmitted = {
+            inverted_points[i][0] - this->source_points[i][0],
+            inverted_points[i][1] - this->source_points[i][1],
+            0 - this->source_points[i][2]  + focal_len
         };
 
         //std::vector<double> incident = {0.0f, 0.0f, 0.0f};

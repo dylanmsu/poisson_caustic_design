@@ -18,7 +18,7 @@ Caustic_design::~Caustic_design()
 }
 
 void Caustic_design::export_inverted_transport_map(std::string filename, double stroke_width) {
-    mesh->calculate_inverted_transport_map(filename, stroke_width);
+    mesh->calculate_and_export_inverted_transport_map(filename, stroke_width);
 }
 
 void Caustic_design::export_paramererization_to_svg(const std::string& filename, double line_width) {
@@ -196,7 +196,7 @@ double Caustic_design::perform_transport_iteration() {
 
     // rasterize the mesh into a uniform rectangular matrix
     bool triangle_miss = false;
-    raster = mesh->interpolate_raster(errors, resolution_x, resolution_y, triangle_miss);
+    raster = mesh->interpolate_raster_target(errors, resolution_x, resolution_y, triangle_miss);
 
     if (triangle_miss) {
         mesh->laplacian_smoothing(mesh->target_points, 0.1f);
@@ -222,13 +222,33 @@ double Caustic_design::perform_transport_iteration() {
     // integrate the gradient grid into the dual cells of the vertices (slower but better contrast)
     vertex_gradient = integrate_cell_gradients(gradient, target_cells, resolution_x, resolution_y, width, height);
 
+    std::vector<std::vector<double>> old_points;
+
+    std::copy(mesh->target_points.begin(), mesh->target_points.end(), back_inserter(old_points));
+
     // step the mesh vertices in the direction of their gradient vector
-    min_step = mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.95f);
+    mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.95f);
 
-    mesh->laplacian_smoothing(mesh->target_points, min_step*(resolution_x/width));
-    //mesh->laplacian_smoothing(mesh->target_points, 1.0f);
+    min_step = 0.0f;
 
-    return min_step*(resolution_x/width);
+    for (int i=0; i<old_points.size(); i++) {
+        double dx = (old_points[i][0] - mesh->target_points[i][0]);
+        double dy = (old_points[i][1] - mesh->target_points[i][1]);
+        double dz = (old_points[i][2] - mesh->target_points[i][2]);
+
+        double dist = sqrt(dx*dx + dy*dy + dz*dz);
+
+        if (min_step < dist) {
+            min_step = dist;
+        }
+    }
+
+    //mesh->laplacian_smoothing(mesh->target_points, min_step*(resolution_x/width));
+    mesh->laplacian_smoothing(mesh->target_points, 0.5f);
+
+    return min_step / width;
+
+    //return min_step*(resolution_x/width);
 }
 
 // normalize a vector such that its length equals 1
@@ -248,24 +268,24 @@ double Caustic_design::perform_transport_iteration() {
 // uses uniform grid as caustic surface
 void Caustic_design::perform_height_map_iteration(int itr) {
     // calculate the target normals
-    std::vector<std::vector<double>> normals = mesh->calculate_refractive_normals(resolution_x / width * focal_l, 1.49);
+    std::vector<std::vector<double>> normals = mesh->calculate_refractive_normals_uniform(resolution_x / width * focal_l, 1.49);
 
     // interpolates the vertex normals into a large uniform grid
-    mesh->build_bvh(5, 30);
+    mesh->build_source_bvh(5, 30);
     bool triangle_miss = false;
-    std::vector<std::vector<double>> norm_x = mesh->interpolate_raster(normals[0], resolution_x, resolution_y, triangle_miss);
-    std::vector<std::vector<double>> norm_y = mesh->interpolate_raster(normals[1], resolution_x, resolution_y, triangle_miss);
+    norm_x = mesh->interpolate_raster_source(normals[0], resolution_x, resolution_y, triangle_miss);
+    norm_y = mesh->interpolate_raster_source(normals[1], resolution_x, resolution_y, triangle_miss);
 
     if (triangle_miss) {
         return;
     }
 
     // calculates the divergance of the interpolated normals
-    std::vector<std::vector<double>> divergence = calculate_divergence(norm_x, norm_y, resolution_x, resolution_y);
+    divergence = calculate_divergence(norm_x, norm_y, resolution_x, resolution_y);
     subtractAverage(divergence);
 
     // solve the poisson equation for the divergance
-    poisson_solver(divergence, h, resolution_x, resolution_y, 100000, 0.0000001, nthreads);
+    poisson_solver(divergence, h, resolution_x, resolution_y, 100000, 0.00000001, nthreads);
 
     /*std::vector<double> interpolated_h;
     for (int i=0; i<mesh->target_points.size(); i++) {
@@ -274,10 +294,14 @@ void Caustic_design::perform_height_map_iteration(int itr) {
     double max_update = mesh->set_target_heights(interpolated_h);
     printf("height max update %.5e\r\n", max_update);*/
 
+    double epsilon = 1e-6;
+
     // get the heights on the vertex positions
     std::vector<double> interpolated_h;
     for (int i=0; i<mesh->source_points.size(); i++) {
-        interpolated_h.push_back(bilinearInterpolation(h, mesh->source_points[i][0] * ((resolution_x) / mesh->width), mesh->source_points[i][1] * ((resolution_y) / mesh->height)));
+        interpolated_h.push_back(bilinearInterpolation(h, 
+            mesh->source_points[i][0] * ((resolution_x - epsilon) / mesh->width + 0.5 * epsilon), 
+            mesh->source_points[i][1] * ((resolution_y - epsilon) / mesh->height + 0.5 * epsilon)));
     }
     double max_update = mesh->set_source_heights(interpolated_h);
     printf("height max update %.5e\r\n", max_update);
