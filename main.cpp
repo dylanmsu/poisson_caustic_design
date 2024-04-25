@@ -133,13 +133,15 @@ int main(int argc, char const *argv[])
 
     caustic_design.export_paramererization_to_svg("../parameterization_0.svg", 0.5f);
     
-    for (int itr=0; itr<100; itr++) {
+    for (int itr=0; itr<30; itr++) {
         printf("starting iteration %i\r\n", itr);
         
         double step_size = caustic_design.perform_transport_iteration();
 
         caustic_design.export_paramererization_to_svg("../parameterization_" + std::to_string(itr + 1) + ".svg", 0.5f);
-        //caustic_design.export_inverted_transport_map("../inverted.svg", 0.5f);
+        caustic_design.export_inverted_transport_map("../inverted.svg", 0.5f);
+
+        save_grid_as_image(scale_matrix_proportional(caustic_design.gradient[0], 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "grad_x.png");
 
         printf("step_size = %f\r\n", step_size);
 
@@ -151,6 +153,9 @@ int main(int argc, char const *argv[])
 
     for (int itr=0; itr<3; itr++) {
         caustic_design.perform_height_map_iteration(itr);
+        //save_grid_as_image(scale_matrix_proportional(caustic_design.divergence, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "div" + std::to_string(itr) + ".png");
+        //save_grid_as_image(scale_matrix_proportional(caustic_design.norm_x, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "norm_x" + std::to_string(itr) + ".png");
+        //save_grid_as_image(scale_matrix_proportional(caustic_design.norm_y, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "norm_y" + std::to_string(itr) + ".png");
     }
 
     printf("Height solver done! Exporting as solidified obj\r\n");

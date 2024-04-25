@@ -184,7 +184,28 @@ std::vector<std::vector<double>> calculate_divergence(const std::vector<std::vec
     }
 
     return divergence;
-}
+}//*/
+
+/*std::vector<std::vector<double>> calculate_divergence(const std::vector<std::vector<double>>& Nx, const std::vector<std::vector<double>>& Ny, int nx, int ny) {
+    int height = ny;
+    int width = nx;
+
+    std::vector<std::vector<double>> divergence(height, std::vector<double>(width, 0.0));
+
+    // Iterate over each point in the grid
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            // Calculate divergence at each point using gradient components Nx and Ny
+            double div_x = (x < width - 1) ? Nx[y][x + 1] - Nx[y][x] : 0.0;
+            double div_y = (y < height - 1) ? Ny[y + 1][x] - Ny[y][x] : 0.0;
+            
+            // Calculate the total divergence
+            divergence[y][x] = div_x + div_y;
+        }
+    }
+
+    return divergence;
+}//*/
 
 void calculate_errors(std::vector<double> &source_areas, std::vector<double> &target_areas, std::vector<std::vector<std::vector<double>>> cells, std::vector<double> &errors) {
     errors.clear();
