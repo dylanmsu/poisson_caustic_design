@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project implements the method described in the paper [Poisson-Based Continuous Surface Generation for Goal-Based Caustics](http://nishitalab.org/user/egaku/tog14/continuous_caustics.pdf).
+This project implements and builds upon the method described in the paper [Poisson-Based Continuous Surface Generation for Goal-Based Caustics](http://nishitalab.org/user/egaku/tog14/continuous_caustics.pdf).
 
 Result simulated with Blender using LuxRender:
 ![Alt text](./doc/lena_sim.gif)
