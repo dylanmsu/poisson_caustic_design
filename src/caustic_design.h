@@ -26,6 +26,7 @@ public:
     std::vector<std::vector<double>> divergence;
     std::vector<std::vector<double>> norm_x;
     std::vector<std::vector<double>> norm_y;
+    std::vector<std::vector<double>> vertex_gradient;
 
     int mesh_res_x;
     int mesh_res_y;

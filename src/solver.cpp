@@ -109,11 +109,17 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
         // Create tasks to process the grid in equal chunks
         for (int y = 0; y < num_segments_y; y++) {
             for (int x = 0; x < num_segments_x; x++) {
-                threads[num_segments_y * x + y] = std::thread(process_grid_part, 
-                    x * (width/num_segments_x),
-                    y * (height/num_segments_y),
-                    (x + 1) * (width/num_segments_x),
-                    (y + 1) * (height/num_segments_y));
+                int start_x = floor(((double)(x)) * ((double)(width)/(double)(num_segments_x)));
+                int start_y = floor(((double)(y)) * ((double)(height)/(double)(num_segments_y)));
+                int end_x = ceil(((double)(x + 1)) * ((double)(width)/(double)(num_segments_x)));
+                int end_y = ceil(((double)(y + 1)) * ((double)(height)/(double)(num_segments_y)));
+
+                // Ensure end coordinates don't go beyond grid boundaries
+                end_x = std::min(end_x, width);
+                end_y = std::min(end_y, height);
+                
+                //threads[num_segments_y * x + y] = std::thread(process_grid_part,0,0,width, height);
+                threads[num_segments_y * x + y] = std::thread(process_grid_part, start_x, start_y, end_x, end_y);
             }
         }
 
