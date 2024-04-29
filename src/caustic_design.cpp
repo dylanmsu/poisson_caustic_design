@@ -91,14 +91,14 @@ std::vector<double> calculate_normal_from_points(std::vector<double> &p0, std::v
 std::vector<double> Caustic_design::calculate_vertex_normal(std::vector<std::vector<double>> &points, int vertex_index) {
     std::vector<double> avg_normal = {0.0, 0.0, 0.0}; // Initialize normal to zero vector
     
-    int left_vtx = NAN;
-    int right_vtx = NAN;
-    int top_vtx = NAN;
-    int bot_vtx = NAN;
+    int left_vtx = 0;
+    int right_vtx = 0;
+    int top_vtx = 0;
+    int bot_vtx = 0;
     
     mesh->get_vertex_neighbor_ids(vertex_index, left_vtx, right_vtx, top_vtx, bot_vtx);
-    
-    if (!std::isnan(left_vtx) && !std::isnan(top_vtx)) {
+
+    if (left_vtx != -1 && top_vtx != -1) {
         std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[left_vtx], points[top_vtx]);
 
         avg_normal[0] += normal[0];
@@ -106,7 +106,7 @@ std::vector<double> Caustic_design::calculate_vertex_normal(std::vector<std::vec
         avg_normal[2] += normal[2];
     }
 
-    if (!std::isnan(left_vtx) && !std::isnan(bot_vtx)) {
+    if (left_vtx != -1 && bot_vtx != -1) {
         std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[bot_vtx], points[left_vtx]);
 
         avg_normal[0] += normal[0];
@@ -114,7 +114,7 @@ std::vector<double> Caustic_design::calculate_vertex_normal(std::vector<std::vec
         avg_normal[2] += normal[2];
     }
 
-    if (!std::isnan(right_vtx) && !std::isnan(bot_vtx)) {
+    if (right_vtx != -1 && bot_vtx != -1) {
         std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[right_vtx], points[bot_vtx]);
 
         avg_normal[0] += normal[0];
@@ -122,7 +122,7 @@ std::vector<double> Caustic_design::calculate_vertex_normal(std::vector<std::vec
         avg_normal[2] += normal[2];
     }
 
-    if (!std::isnan(right_vtx) && !std::isnan(top_vtx)) {
+    if (right_vtx != -1 && top_vtx != -1) {
         std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[top_vtx], points[right_vtx]);
 
         avg_normal[0] += normal[0];
@@ -183,7 +183,7 @@ double bilinearInterpolation(const std::vector<std::vector<double>>& image, doub
 }
 
 double Caustic_design::perform_transport_iteration() {
-    std::vector<std::vector<double>> vertex_gradient;
+    //std::vector<std::vector<double>> vertex_gradient;
     double min_step;
 
     // build median dual mesh of the updated parameterization
@@ -197,7 +197,7 @@ double Caustic_design::perform_transport_iteration() {
     // rasterize the mesh into a uniform rectangular matrix
     bool triangle_miss = false;
     raster = mesh->interpolate_raster_target(errors, resolution_x, resolution_y, triangle_miss);
-
+    
     if (triangle_miss) {
         mesh->laplacian_smoothing(mesh->target_points, 0.1f);
         return NAN;
@@ -213,21 +213,40 @@ double Caustic_design::perform_transport_iteration() {
     // calculate the gradient vectors corresponding to each vertex in the mesh
 
     // bilinear interpolating the gradients (negligibly faster, but gives lower contrast results)
-    /*std::vector<std::vector<double>> gradient(2);
-    for (int i=0; i<mesh.target_points.size(); i++) {
-        gradient[0].push_back(bilinearInterpolation(grad[0], mesh.target_points[i][0] * ((resolution_x - 2) / mesh.width), mesh.target_points[i][1] * ((resolution_y - 2) / mesh.height)));
-        gradient[1].push_back(bilinearInterpolation(grad[1], mesh.target_points[i][0] * ((resolution_x - 2) / mesh.width), mesh.target_points[i][1] * ((resolution_y - 2) / mesh.height)));
-    }//*/
+    double epsilon = 1e-8;
+    
+
+    std::vector<double> vertex_gradient_x;
+    std::vector<double> vertex_gradient_y;
+    for (int i=0; i<mesh->target_points.size(); i++) {
+        vertex_gradient_x.push_back(bilinearInterpolation(gradient[0], 
+            (mesh->target_points[i][0] / mesh->width) * (resolution_x) - 0.5, 
+            (mesh->target_points[i][1] / mesh->height) * (resolution_y) - 0.5
+        ));
+
+        vertex_gradient_y.push_back(bilinearInterpolation(gradient[1], 
+            (mesh->target_points[i][0] / mesh->width) * (resolution_x) - 0.5, 
+            (mesh->target_points[i][1] / mesh->height) * (resolution_y) - 0.5
+        ));
+    }
+
+    vertex_gradient.clear();
+    vertex_gradient.push_back(vertex_gradient_x);
+    vertex_gradient.push_back(vertex_gradient_y);
+    
+    //*/
 
     // integrate the gradient grid into the dual cells of the vertices (slower but better contrast)
-    vertex_gradient = integrate_cell_gradients(gradient, target_cells, resolution_x, resolution_y, width, height);
+    //vertex_gradient = integrate_cell_gradients(gradient, target_cells, resolution_x, resolution_y, width, height);
 
     std::vector<std::vector<double>> old_points;
 
     std::copy(mesh->target_points.begin(), mesh->target_points.end(), back_inserter(old_points));
 
     // step the mesh vertices in the direction of their gradient vector
-    mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.95f);
+    mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.05f);
+
+    //mesh->laplacian_smoothing(mesh->target_points, 0.5f);
 
     min_step = 0.0f;
 
@@ -243,8 +262,7 @@ double Caustic_design::perform_transport_iteration() {
         }
     }
 
-    //mesh->laplacian_smoothing(mesh->target_points, min_step*(resolution_x/width));
-    mesh->laplacian_smoothing(mesh->target_points, 0.5f);
+    //mesh->laplacian_smoothing(mesh->target_points, min_step / width);
 
     return min_step / width;
 
@@ -294,14 +312,15 @@ void Caustic_design::perform_height_map_iteration(int itr) {
     double max_update = mesh->set_target_heights(interpolated_h);
     printf("height max update %.5e\r\n", max_update);*/
 
-    double epsilon = 1e-6;
+    double epsilon = 1e-8;
 
     // get the heights on the vertex positions
     std::vector<double> interpolated_h;
     for (int i=0; i<mesh->source_points.size(); i++) {
         interpolated_h.push_back(bilinearInterpolation(h, 
-            mesh->source_points[i][0] * ((resolution_x - epsilon) / mesh->width + 0.5 * epsilon), 
-            mesh->source_points[i][1] * ((resolution_y - epsilon) / mesh->height + 0.5 * epsilon)));
+            (mesh->source_points[i][0] / mesh->width) * (resolution_x) - 0.5, 
+            (mesh->source_points[i][1] / mesh->height) * (resolution_y) - 0.5
+        ));
     }
     double max_update = mesh->set_source_heights(interpolated_h);
     printf("height max update %.5e\r\n", max_update);

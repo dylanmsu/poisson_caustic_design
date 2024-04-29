@@ -283,7 +283,7 @@ std::vector<std::vector<double>> Mesh::interpolate_raster_target(const std::vect
     std::vector<double> x(res_x);
     std::vector<double> y(res_y);
 
-    double epsilon = 1e-6;//std::numeric_limits<float>::epsilon();
+    double epsilon = 1e-8;//std::numeric_limits<float>::epsilon();
 
     for (int i = 0; i < res_x; ++i) {
         //x[i] = ((static_cast<double>(i) + 1) / res_x) * width - (1 * width) / (res_x);
@@ -340,7 +340,7 @@ std::vector<std::vector<double>> Mesh::interpolate_raster_source(const std::vect
     std::vector<double> x(res_x);
     std::vector<double> y(res_y);
 
-    double epsilon = 1e-6;//std::numeric_limits<float>::epsilon();
+    double epsilon = 1e-8;//std::numeric_limits<float>::epsilon();
 
     for (int i = 0; i < res_x; ++i) {
         //x[i] = ((static_cast<double>(i) + 1) / res_x) * width - (1 * width) / (res_x);
@@ -393,7 +393,7 @@ std::vector<std::vector<double>> Mesh::interpolate_raster_source(const std::vect
 std::vector<std::vector<double>> Mesh::calculate_inverted_transport_map() {
     build_target_bvh(5, 30);
 
-    double epsilon = 1e-6;//std::numeric_limits<float>::epsilon();
+    double epsilon = 1e-8;//std::numeric_limits<float>::epsilon();
 
     std::vector<std::vector<double>> inverted_points;
     for (int i=0; i<this->source_points.size(); ++i) {
@@ -564,7 +564,7 @@ double Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>
     }*/
 
     //double min_t = find_min_delta_t(velocities);
-    double min_t = 0.1 * (width/res_x);
+    double min_t = (width/res_x);
     //std::cout << "min_t = " << min_t << std::endl;
 
     // Move vertices along the gradient
@@ -823,14 +823,25 @@ void Mesh::get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_v
 
     if (x != 0) {
         left_vertex = (y) * res_x + (x - 1);
+    } else {
+        left_vertex = -1;
     }
+
     if (y != 0) {
         top_vertex = (y - 1) * res_x + (x);
+    } else {
+        top_vertex = -1;
     }
+
     if (x != res_x - 1) {
         right_vertex = (y) * res_x + (x + 1);
+    } else {
+        right_vertex = -1;
     }
+
     if (y != res_y - 1) {
         bottom_vertex = (y + 1) * res_x + (x);
+    } else {
+        bottom_vertex = -1;
     }
 }

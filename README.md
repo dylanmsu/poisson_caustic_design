@@ -119,7 +119,7 @@ Result simulated with Blender using LuxRender:
     <th style="text-align: center;">simulation</th>
   </tr>
   <tr>
-    <td style="text-align: center;">Lena</td>
+    <td style="text-align: center;">Lena (Mesh: 256 x 256)</td>
     <td style="text-align: center;"><img src="./img/lena.png" alt="Lena Parameterization"></td>
     <td style="text-align: center;"><img src="./doc/lena_parameterization.svg" alt="Lena Parameterization" width="500"></td>
     <td style="text-align: center;"><img src="./doc/lena_inverted.svg" alt="Lena Inverted Parameterization" width="500"></td>
@@ -127,7 +127,7 @@ Result simulated with Blender using LuxRender:
     <td style="text-align: center;"><img src="./doc/lena_sim.png" alt="Lena Simulation"></td>
   </tr>
   <tr>
-    <td style="text-align: center;">Siggraph logo</td>
+    <td style="text-align: center;">Siggraph logo (Mesh: 200 x 200)</td>
     <td style="text-align: center;"><img src="./img/siggraph.png" alt="Lena Parameterization"></td>
     <td style="text-align: center;"><img src="./doc/siggraph_parameterization.svg" alt="Siggraph Parameterization" width="500"></td>
     <td style="text-align: center;"><img src="./doc/siggraph_inverted.svg" alt="Siggraph Inverted Parameterization" width="500"></td>
@@ -135,7 +135,7 @@ Result simulated with Blender using LuxRender:
     <td style="text-align: center;"><img src="./doc/siggraph_sim.png" alt="Siggraph Simulation"></td>
   </tr>
   <tr>
-    <td style="text-align: center;">Hello World</td>
+    <td style="text-align: center;">Hello World (Mesh: 256 x 128)</td>
     <td style="text-align: center;"><img src="./img/hello.png" alt="Lena Parameterization"></td>
     <td style="text-align: center;"><img src="./doc/hello_parameterization.svg" alt="Siggraph Parameterization" width="500"></td>
     <td style="text-align: center;"><img src="./doc/hello_inverted.svg" alt="Siggraph Inverted Parameterization" width="500"></td>
