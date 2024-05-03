@@ -158,11 +158,10 @@ Shadow of the machined prototype:
 
 ## Future plans
 
-1. updated height solver -> this will allow more freedom in the lens design
+1. least squares solver for the heightmap -> this will allow more freedom in the lens design
 2. reflective caustics -> is currently not that usefull because of the limited freedom in the height solver
-3. circular lenses
-4. create portable builds for Win/Linux in releases
-5. GUI application
+3. circular caustic lenses
+4. use the fast transport map algoritm from the paper: [https://gnader.github.io/publications/2018-ot-transport.html](Instant Transport Maps on 2D Grids)
 
 ## Contributing
 
