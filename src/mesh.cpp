@@ -672,20 +672,6 @@ void Mesh::export_paramererization_to_svg(std::string filename, double stroke_wi
     return {x_normals, y_normals};
 }*/
 
-// normalize a vector such that its length equals 1
-void normalize(std::vector<double> &vec) {
-    double squared_len = 0;
-    for (int i=0; i<vec.size(); i++) {
-        squared_len += vec[i] * vec[i];
-    }
-
-    double len = std::sqrt(squared_len);
-
-    for (int i=0; i<vec.size(); i++) {
-        vec[i] /= len;
-    }
-}
-
 // calculate target vertex normals for refractive caustics
 std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal_len, double refractive_index) {
     std::vector<double> x_normals;
@@ -715,8 +701,8 @@ std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal
         //incident[1] = this->target_points[i][1] - point_src[1];
         //incident[2] = this->target_points[i][2] - point_src[2];
 
-        normalize(transmitted);
-        normalize(incident);
+        transmitted = normalize(transmitted);
+        incident = normalize(incident);
 
         // t - µi
         double x_normal = transmitted[0] - incident[0] * refractive_index;
@@ -763,8 +749,8 @@ std::vector<std::vector<double>> Mesh::calculate_refractive_normals_uniform(doub
         //incident[1] = this->target_points[i][1] - point_src[1];
         //incident[2] = this->target_points[i][2] - point_src[2];
 
-        normalize(transmitted);
-        normalize(incident);
+        transmitted = normalize(transmitted);
+        incident = normalize(incident);
 
         // t - µi
         double x_normal = transmitted[0] - incident[0] * refractive_index;

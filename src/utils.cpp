@@ -394,3 +394,64 @@ void export_triangles_to_svg(std::vector<std::vector<double>> &points, std::vect
     svg_file << "</svg>\n";
     svg_file.close();
 }
+
+std::vector<double> vector_subtract(const std::vector<double>& p1, const std::vector<double>& p2) {
+    std::vector<double> difference(p1.size());
+    
+    for (size_t i = 0; i < p1.size(); ++i) {
+        difference[i] = p1[i] - p2[i];
+    }
+
+    return difference;
+}
+
+std::vector<double> cross_product(const std::vector<double>& p1, const std::vector<double>& p2) {
+    std::vector<double> cross(3);
+    
+    cross[0] = p1[1]*p2[2] - p1[2]*p2[1];
+    cross[1] = p1[2]*p2[0] - p1[0]*p2[2];
+    cross[2] = p1[0]*p2[1] - p1[1]*p2[0];
+
+    return cross;
+}
+
+double dot_product(const std::vector<double>& p1, const std::vector<double>& p2) {
+    return p1[0]*p2[0] + p1[1]*p2[1] + p1[2]*p2[2];
+}
+
+std::vector<double> normalize(std::vector<double> p1) {
+    std::vector<double> vec(3);
+    double squared_len = 0;
+    for (int i=0; i<p1.size(); i++) {
+        squared_len += p1[i] * p1[i];
+    }
+
+    double len = std::sqrt(squared_len);
+
+    for (int i=0; i<p1.size(); i++) {
+        vec[i] = p1[i] / len;
+    }
+
+    return vec;
+}
+
+void calculate_angle_and_normal_from_triangle(std::vector<double> &p1, std::vector<double> &p2,std::vector<double> &p3, std::vector<double> &normal_out, double &angle_out) {
+    std::vector<double> u = vector_subtract(p2, p1);
+    std::vector<double> v = vector_subtract(p3, p1);
+    
+    normal_out = normalize(cross_product(u, v));
+
+    std::vector<double> nu = normalize(u);
+    std::vector<double> nv = normalize(v);
+
+    double res = dot_product(nu, nv);
+
+    // Ensure res is within valid range [-1, 1]
+    if (res <= -1.0) {
+        angle_out = M_PI; // angle is 180 degrees
+    } else if (res >= 1.0) {
+        angle_out = 0.0; // angle is 0 degrees
+    } else {
+        angle_out = acos(res);
+    }
+}
