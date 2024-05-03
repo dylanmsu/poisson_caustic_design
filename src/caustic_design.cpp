@@ -60,33 +60,6 @@ void Caustic_design::save_solid_obj_source(const std::string& filename) {
     this->mesh->save_solid_obj_source(thickness, filename);
 }
 
-std::vector<double> vector_subtract(const std::vector<double>& p1, const std::vector<double>& p2) {
-    std::vector<double> difference(p1.size());
-    
-    for (size_t i = 0; i < p1.size(); ++i) {
-        difference[i] = p1[i] - p2[i];
-    }
-
-    return difference;
-}
-
-std::vector<double> cross_product(const std::vector<double>& p1, const std::vector<double>& p2) {
-    std::vector<double> cross(3);
-    
-    cross[0] = p1[1]*p2[2] - p1[2]*p2[1];
-    cross[1] = p1[2]*p2[0] - p1[0]*p2[2];
-    cross[2] = p1[0]*p2[1] - p1[1]*p2[0];
-
-    return cross;
-}
-
-std::vector<double> calculate_normal_from_points(std::vector<double> &p0, std::vector<double> &p1,std::vector<double> &p2) {
-    std::vector<double> u = vector_subtract(p1, p0);
-    std::vector<double> v = vector_subtract(p2, p0);
-
-    return cross_product(u, v);
-}
-
 // Function to calculate the approximate vertex normal
 std::vector<double> Caustic_design::calculate_vertex_normal(std::vector<std::vector<double>> &points, int vertex_index) {
     std::vector<double> avg_normal = {0.0, 0.0, 0.0}; // Initialize normal to zero vector
@@ -95,50 +68,82 @@ std::vector<double> Caustic_design::calculate_vertex_normal(std::vector<std::vec
     int right_vtx = 0;
     int top_vtx = 0;
     int bot_vtx = 0;
+
+    //printf("aa\r\n");
     
     mesh->get_vertex_neighbor_ids(vertex_index, left_vtx, right_vtx, top_vtx, bot_vtx);
 
-    if (left_vtx != -1 && top_vtx != -1) {
-        std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[left_vtx], points[top_vtx]);
+    //printf("ab\r\n");
 
-        avg_normal[0] += normal[0];
-        avg_normal[1] += normal[1];
-        avg_normal[2] += normal[2];
+    if (left_vtx != -1 && top_vtx != -1) {
+        std::vector<double> normal;
+        double angle_out;
+
+        calculate_angle_and_normal_from_triangle(points[vertex_index], points[left_vtx], points[top_vtx], normal, angle_out);
+
+        //printf("ac1\r\n"); fflush(stdout);
+        //printf("normal = {%f, %f, %f}, angle = %f\r\n", normal[0], normal[1], normal[2], angle_out); fflush(stdout);
+
+        avg_normal[0] += normal[0] * angle_out;
+        avg_normal[1] += normal[1] * angle_out;
+        avg_normal[2] += normal[2] * angle_out;
     }
 
     if (left_vtx != -1 && bot_vtx != -1) {
-        std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[bot_vtx], points[left_vtx]);
+        std::vector<double> normal;
+        double angle_out;
 
-        avg_normal[0] += normal[0];
-        avg_normal[1] += normal[1];
-        avg_normal[2] += normal[2];
+        calculate_angle_and_normal_from_triangle(points[vertex_index], points[bot_vtx], points[left_vtx], normal, angle_out);
+
+        //printf("ac2\r\n"); fflush(stdout);
+        //printf("normal = {%f, %f, %f}, angle = %f\r\n", normal[0], normal[1], normal[2], angle_out); fflush(stdout);
+
+        avg_normal[0] += normal[0] * angle_out;
+        avg_normal[1] += normal[1] * angle_out;
+        avg_normal[2] += normal[2] * angle_out;
     }
 
     if (right_vtx != -1 && bot_vtx != -1) {
-        std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[right_vtx], points[bot_vtx]);
+        std::vector<double> normal;
+        double angle_out;
 
-        avg_normal[0] += normal[0];
-        avg_normal[1] += normal[1];
-        avg_normal[2] += normal[2];
+        calculate_angle_and_normal_from_triangle(points[vertex_index], points[right_vtx], points[bot_vtx], normal, angle_out);
+
+        //printf("ac3\r\n"); fflush(stdout);
+        //printf("normal = {%f, %f, %f}, angle = %f\r\n", normal[0], normal[1], normal[2], angle_out); fflush(stdout);
+        
+        avg_normal[0] += normal[0] * angle_out;
+        avg_normal[1] += normal[1] * angle_out;
+        avg_normal[2] += normal[2] * angle_out;
     }
 
     if (right_vtx != -1 && top_vtx != -1) {
-        std::vector<double> normal = calculate_normal_from_points(points[vertex_index], points[top_vtx], points[right_vtx]);
+        std::vector<double> normal;
+        double angle_out;
 
-        avg_normal[0] += normal[0];
-        avg_normal[1] += normal[1];
-        avg_normal[2] += normal[2];
+        calculate_angle_and_normal_from_triangle(points[vertex_index], points[top_vtx], points[right_vtx], normal, angle_out);
+
+        //printf("ac4\r\n"); fflush(stdout);
+        //printf("normal = {%f, %f, %f}, angle = %f\r\n", normal[0], normal[1], normal[2], angle_out); fflush(stdout);
+        
+        avg_normal[0] += normal[0] * angle_out;
+        avg_normal[1] += normal[1] * angle_out;
+        avg_normal[2] += normal[2] * angle_out;
     }
+
+    //printf("ad\r\n"); fflush(stdout);
 
     // Calculate magnitude
     double magnitude = sqrt(avg_normal[0] * avg_normal[0] + avg_normal[1] * avg_normal[1] + avg_normal[2] * avg_normal[2]);
 
     // Avoid division by zero
     if (magnitude > 1e-12) {
-        avg_normal[0] /= magnitude;
+        avg_normal[0] /= -magnitude;
         avg_normal[1] /= -magnitude;
         avg_normal[2] /= magnitude;
     }
+
+    //printf("ae\r\n"); fflush(stdout);
 
     return avg_normal;
 }
@@ -244,7 +249,7 @@ double Caustic_design::perform_transport_iteration() {
     std::copy(mesh->target_points.begin(), mesh->target_points.end(), back_inserter(old_points));
 
     // step the mesh vertices in the direction of their gradient vector
-    mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.05f);
+    mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.1f);
 
     //mesh->laplacian_smoothing(mesh->target_points, 0.5f);
 
@@ -286,7 +291,7 @@ double Caustic_design::perform_transport_iteration() {
 // uses uniform grid as caustic surface
 void Caustic_design::perform_height_map_iteration(int itr) {
     // calculate the target normals
-    std::vector<std::vector<double>> normals = mesh->calculate_refractive_normals_uniform(resolution_x / width * focal_l, 1.49);
+    normals = mesh->calculate_refractive_normals_uniform(resolution_x / width * focal_l, 1.49);
 
     // interpolates the vertex normals into a large uniform grid
     mesh->build_source_bvh(5, 30);

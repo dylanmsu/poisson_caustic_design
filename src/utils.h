@@ -28,4 +28,13 @@ void export_triangles_to_svg(std::vector<std::vector<double>> &points, std::vect
 // 3d export
 void save_solid_obj(std::vector<std::vector<double>> &front_points, std::vector<std::vector<double>> &back_points, std::vector<std::vector<int>> &triangles, double thickness, double width, double height, int res_x, int res_y, const std::string& filename);
 
+// linear algebra
+std::vector<double> vector_subtract(const std::vector<double>& p1, const std::vector<double>& p2);
+std::vector<double> cross_product(const std::vector<double>& p1, const std::vector<double>& p2);
+double dot_product(const std::vector<double>& p1, const std::vector<double>& p2);
+
+std::vector<double> normalize(std::vector<double> p1);
+
+void calculate_angle_and_normal_from_triangle(std::vector<double> &p1, std::vector<double> &p2,std::vector<double> &p3, std::vector<double> &normal_out, double &angle_out);
+
 #endif

@@ -27,6 +27,7 @@ public:
     std::vector<std::vector<double>> norm_x;
     std::vector<std::vector<double>> norm_y;
     std::vector<std::vector<double>> vertex_gradient;
+    std::vector<std::vector<double>> normals;
 
     int mesh_res_x;
     int mesh_res_y;
