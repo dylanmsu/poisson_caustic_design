@@ -439,9 +439,11 @@ void calculate_angle_and_normal_from_triangle(std::vector<double> &p1, std::vect
     std::vector<double> u = vector_subtract(p2, p1);
     std::vector<double> v = vector_subtract(p3, p1);
     
-    normal_out = normalize(cross_product(u, v));
+    //normal_out = normalize(cross_product(u, v));
+    normal_out = cross_product(u, v);
+    angle_out = 1.0f;
 
-    std::vector<double> nu = normalize(u);
+    /*std::vector<double> nu = normalize(u);
     std::vector<double> nv = normalize(v);
 
     double res = dot_product(nu, nv);
@@ -453,5 +455,5 @@ void calculate_angle_and_normal_from_triangle(std::vector<double> &p1, std::vect
         angle_out = 0.0; // angle is 0 degrees
     } else {
         angle_out = acos(res);
-    }
+    }*/
 }

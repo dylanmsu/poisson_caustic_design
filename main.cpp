@@ -11,12 +11,10 @@
 #define cimg_use_png
 //#define cimg_use_jpeg
 
-#if defined(_WIN32) || defined(_WIN64)
-    #include "CImg.h"
-#else
-    #include<X11/Xlib.h>
-    #include "/home/dylan/caustic_engineering/CImg.h"
-#endif
+#include "cimg/CImg.h"
+#include "lsqcpp/lsqcpp.hpp"
+
+Caustic_design caustic_design;
 
 void image_to_grid(const cimg_library::CImg<unsigned char>& image, std::vector<std::vector<double>>& image_grid) {
     for (int i = 0; i < image.height(); ++i) {
@@ -94,6 +92,51 @@ std::unordered_map<std::string, std::string> parse_arguments(int argc, char cons
     return args;
 }
 
+struct ParabolicError
+{
+    static constexpr bool ComputesJacobian = false; // Set to true to indicate that the functor computes the Jacobian.
+
+    template<typename Scalar, int Inputs, int Outputs>
+    void operator()(const Eigen::Matrix<Scalar, Inputs, 1> &xval, Eigen::Matrix<Scalar, Outputs, 1> &fval) const {
+        fval.resize(xval.size());
+
+        // set the heights of the mesh based on the input vector
+        for(lsqcpp::Index i = 0; i < xval.size(); ++i) {
+            caustic_design.mesh->source_points[i][2] = xval(i);
+        }
+
+        Scalar E_int = 0.0f;
+        for (lsqcpp::Index i = 0; i < xval.size(); ++i) {
+            // Calculate the current normal
+            std::vector<double> normal = caustic_design.calculate_vertex_normal(caustic_design.mesh->source_points, i);
+
+            // Get the target normal
+            std::vector<double> normal_trg = { caustic_design.normals[0][i], caustic_design.normals[1][i], caustic_design.normals[2][i]};
+
+            normal_trg = normalize(normal_trg);
+            normal = normalize(normal);
+
+            // Calculate the difference
+            std::vector<double> diff = vector_subtract(normal, normal_trg);
+
+            fval(i) = diff[0];
+
+            // Sum up the squared components of the difference
+            //double energy = diff[0] * diff[0];// + diff[1] * diff[1] + diff[2] * diff[2];
+
+            //E_int += energy;
+        }
+
+        //fval(0) = E_int;
+    }
+};
+
+
+
+
+
+
+
 int main(int argc, char const *argv[])
 {
     // Parse user arguments
@@ -108,8 +151,6 @@ int main(int argc, char const *argv[])
         //std::cout << "Key: " << pair.first << ", Value: " << pair.second << std::endl;
         printf("Key: %s, Value: %s\r\n", pair.first.c_str(), pair.second.c_str());
     }*/
-
-    Caustic_design caustic_design;
 
     int mesh_resolution_x = atoi(args["res_w"].c_str());
     double mesh_width = std::stod(args["width"]);
@@ -134,7 +175,11 @@ int main(int argc, char const *argv[])
 
     caustic_design.initialize_solvers(pixels);
 
-    caustic_design.export_paramererization_to_svg("../parameterization_0.svg", 0.5f);
+    printf("a\r\n");
+
+    //caustic_design.export_paramererization_to_svg("../parameterization_0.svg", 0.5f);
+
+    printf("b\r\n");
     
     for (int itr=0; itr<30; itr++) {
         printf("starting iteration %i\r\n", itr);
@@ -159,35 +204,76 @@ int main(int argc, char const *argv[])
     printf("\033[0;32mTransport map solver done! Starting height solver.\033[0m\r\n");
 
     for (int itr=0; itr<3; itr++) {
-        caustic_design.perform_height_map_iteration(itr);
+        //caustic_design.perform_height_map_iteration(itr);
         //save_grid_as_image(scale_matrix_proportional(caustic_design.h, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "../h" + std::to_string(itr) + ".png");
         //save_grid_as_image(scale_matrix_proportional(caustic_design.divergence, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "../div" + std::to_string(itr) + ".png");
         //save_grid_as_image(scale_matrix_proportional(caustic_design.norm_x, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "norm_x" + std::to_string(itr) + ".png");
         //save_grid_as_image(scale_matrix_proportional(caustic_design.norm_y, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "norm_y" + std::to_string(itr) + ".png");
     }
 
-    /*std::vector<std::vector<double>> normals;
-    std::vector<std::vector<double>> normals_trg;
-    for (int i=0; i<caustic_design.mesh->source_points.size(); i++) {
-        std::vector<double> normal = caustic_design.calculate_vertex_normal(caustic_design.mesh->source_points, i);
-        normal[2] *= (mesh_resolution_x * 4) / mesh_width;
-        normal = normalize(normal);
+    caustic_design.normals.clear();
+    caustic_design.normals = caustic_design.mesh->calculate_refractive_normals_uniform(caustic_design.focal_l * 16, 1.49);
 
-        normals_trg.push_back(normalize({
-            caustic_design.normals[0][i],
-            caustic_design.normals[1][i],
-            caustic_design.normals[2][i]
-        }));
+    // Create GaussNewton optimizer object with ParabolicError functor as objective.
+    // There are GradientDescent, GaussNewton and LevenbergMarquardt available.
+    //
+    // You can specify a StepSize functor as template parameter.
+    // There are ConstantStepSize, BarzilaiBorwein, ArmijoBacktracking
+    // WolfeBacktracking available. (Default for GaussNewton is ArmijoBacktracking)
+    //
+    // You can additionally specify a Callback functor as template parameter.
+    //
+    // You can additionally specify a FiniteDifferences functor as template
+    // parameter. There are Forward-, Backward- and CentralDifferences
+    // available. (Default is CentralDifferences)
+    //
+    // For GaussNewton and LevenbergMarquardt you can additionally specify a
+    // linear equation system solver.
+    // There are DenseSVDSolver and DenseCholeskySolver available.
+    lsqcpp::GaussNewtonX<double, ParabolicError, lsqcpp::ArmijoBacktracking> optimizer;
+    //lsqcpp::LevenbergMarquardtX<double, ParabolicError> optimizer;
 
-        normals.push_back(normal);
-    }
+    // Set number of iterations as stop criterion.
+    // Set it to 0 or negative for infinite iterations (default is 0).
+    optimizer.setMaximumIterations(100);
 
-    std::vector<double> E_int;
-    for (int i=0; i<caustic_design.mesh->source_points.size(); i++) {
-        std::vector<double> diff = vector_subtract(normals[i], normals_trg[i]);
-        double energy = diff[0]*diff[0] + diff[1]*diff[1] + diff[2]*diff[2];
-        E_int.push_back(energy);
-    }
+    // Set the minimum length of the gradient.
+    // The optimizer stops minimizing if the gradient length falls below this
+    // value.
+    // Set it to 0 or negative to disable this stop criterion (default is 1e-9).
+    optimizer.setMinimumGradientLength(1e-6);
+
+    // Set the minimum length of the step.
+    // The optimizer stops minimizing if the step length falls below this
+    // value.
+    // Set it to 0 or negative to disable this stop criterion (default is 1e-9).
+    optimizer.setMinimumStepLength(1e-6);
+
+    // Set the minimum least squares error.
+    // The optimizer stops minimizing if the error falls below this
+    // value.
+    // Set it to 0 or negative to disable this stop criterion (default is 0).
+    optimizer.setMinimumError(0);
+
+    // Set the parameters of the step refiner (Armijo Backtracking).
+    //optimizer.setMethodParameters({1.0, 2.0, 0.5, 100});
+
+    // Turn verbosity on, so the optimizer prints status updates after each
+    // iteration.
+    optimizer.setVerbosity(2);
+
+    std::vector<double> guess(caustic_design.mesh->source_points.size(), 0.0f);
+
+    // Set initial guess.
+    Eigen::VectorXd initialGuess = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(guess.data(), guess.size());
+
+    // Start the optimization.
+    auto result = optimizer.minimize(initialGuess);
+
+    //printf("Done! Converged: %s Iterations: %d\n", result.converged ? "true" : "false", result.iterations);
+
+    // do something with final function value
+    //printf("Final fval: %s\n", result.fval.transpose());
 
     /*bool miss = false;
     std::vector<std::vector<double>> norm_x = caustic_design.mesh->interpolate_raster_source(x_normals, 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, miss);

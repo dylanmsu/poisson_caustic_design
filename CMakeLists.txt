@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dcimg_display=0")
 
 # Add include directories
-include_directories(${CMAKE_SOURCE_DIR}/include)  # Adjust the path as needed
+include_directories(${CMAKE_SOURCE_DIR}/src/vendor)
 
 # Add your source files here
 set(SOURCE_FILES 
@@ -25,6 +25,7 @@ set(SOURCE_FILES
 find_package(PNG REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(X11 REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 # Create the executable
 add_executable(CausticEngineering ${SOURCE_FILES})

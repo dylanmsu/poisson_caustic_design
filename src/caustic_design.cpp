@@ -134,14 +134,12 @@ std::vector<double> Caustic_design::calculate_vertex_normal(std::vector<std::vec
     //printf("ad\r\n"); fflush(stdout);
 
     // Calculate magnitude
-    double magnitude = sqrt(avg_normal[0] * avg_normal[0] + avg_normal[1] * avg_normal[1] + avg_normal[2] * avg_normal[2]);
+    //double magnitude = sqrt(avg_normal[0] * avg_normal[0] + avg_normal[1] * avg_normal[1] + avg_normal[2] * avg_normal[2]);
 
     // Avoid division by zero
-    if (magnitude > 1e-12) {
-        avg_normal[0] /= -magnitude;
-        avg_normal[1] /= -magnitude;
-        avg_normal[2] /= magnitude;
-    }
+    //if (magnitude > 1e-12) {
+    avg_normal[0] *= -1;
+    avg_normal[1] *= -1;
 
     //printf("ae\r\n"); fflush(stdout);
 
@@ -338,9 +336,7 @@ void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) 
 
     mesh = new Mesh(width, height, mesh_res_x, mesh_res_y);
 
-    printf("generated mesh\r\n");
-
-    mesh->export_to_svg("../mesh.svg", 1);
+    printf("generated mesh, building dual cells\r\n");
 
     //std::cout << "built mesh" << std::endl;
 
@@ -349,10 +345,10 @@ void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) 
     mesh->build_source_dual_cells(source_cells);
     //mesh.build_circular_target_dual_cells(circ_target_cells);
 
+    printf("generated dual mesh, integrating image\r\n");
+
     //std::vector<double> target_areas = get_target_areas(pixels, circ_target_cells, resolution_x, resolution_y, width, height);
     target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);
-
-    export_cells_as_svg(target_cells, scale_array_proportional(target_areas, 0.0f, 1.0f), "../cells.svg");
 
     phi.clear();
     h.clear();
