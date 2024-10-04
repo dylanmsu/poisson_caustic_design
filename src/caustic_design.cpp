@@ -249,7 +249,7 @@ double Caustic_design::perform_transport_iteration() {
     std::copy(mesh->target_points.begin(), mesh->target_points.end(), back_inserter(old_points));
 
     // step the mesh vertices in the direction of their gradient vector
-    mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.1f);
+    mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.05f);
 
     //mesh->laplacian_smoothing(mesh->target_points, 0.5f);
 
