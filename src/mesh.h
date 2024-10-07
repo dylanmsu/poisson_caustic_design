@@ -29,17 +29,13 @@ struct HashPair {
 
 class Mesh {
     private:
-        std::vector<std::vector<int>> triangles;
-
-        std::unordered_map<int, std::vector<int>> vertex_to_triangles;
 
         // stores the BVH tree for the target mesh
         Bvh *target_bvh;
         Bvh *source_bvh;
 
         void generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<point_t> &points);
-        void build_vertex_to_triangles();
-        std::pair<std::vector<std::pair<int, int>>, std::vector<int>> find_adjacent_elements(int vertex_index);
+        void build_vertex_to_triangles();;
 
         double find_min_delta_t(const std::vector<std::vector<double>>& velocities);
 
@@ -47,8 +43,12 @@ class Mesh {
         Mesh(double width, double height, int res_x, int res_y);
         ~Mesh();
 
+        std::unordered_map<int, std::vector<int>> vertex_to_triangles;
+
         std::vector<point_t> source_points;
         std::vector<point_t> target_points;
+
+        std::vector<std::vector<int>> triangles;
 
         double width;
         double height;
@@ -56,8 +56,12 @@ class Mesh {
         int res_x;
         int res_y;
 
+        std::pair<std::vector<std::pair<int, int>>, std::vector<int>> find_adjacent_elements(int vertex_index);
+
         void export_to_svg(std::string filename, double stroke_width);
         void export_paramererization_to_svg(std::string filename, double stroke_width);
+
+        void find_vertex_connectivity(int vertex_index, std::vector<int> &neighborList, std::vector<int> &neighborMap);
 
         std::vector<std::vector<double>> get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points);
         
@@ -93,6 +97,8 @@ class Mesh {
         void laplacian_smoothing(std::vector<std::vector<double>> &points, double smoothing_factor);
 
         void get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_vertex, int &top_vertex, int &bottom_vertex);
+
+        std::vector<double> calculate_vertex_normal(std::vector<std::vector<double>> &points, int vertex_index);
 };
 
 #endif

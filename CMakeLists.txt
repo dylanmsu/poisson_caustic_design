@@ -3,6 +3,9 @@ cmake_policy(VERSION 3.12)
 
 project(CausticEngineering)
 
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")  # -O0 disables optimizations
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -24,8 +27,10 @@ set(SOURCE_FILES
 
 find_package(PNG REQUIRED)
 find_package(ZLIB REQUIRED)
-find_package(X11 REQUIRED)
 find_package(Eigen3 REQUIRED)
+
+find_package(Ceres REQUIRED)
+include_directories(${CERES_INCLUDE_DIRS})
 
 # Create the executable
 add_executable(CausticEngineering ${SOURCE_FILES})
@@ -37,7 +42,7 @@ target_include_directories(CausticEngineering PUBLIC ${PNG_INCLUDE_DIRS})
 target_link_libraries(CausticEngineering PUBLIC ${PNG_LIBRARIES} ${ZLIB_LIBRARIES})
 
 # Link with X11 libraries
-target_link_libraries(CausticEngineering PUBLIC ${X11_LIBRARIES})
+target_link_libraries(CausticEngineering PUBLIC ${CERES_LIBRARIES})
 
 # Install the executable
 install(TARGETS CausticEngineering DESTINATION .)

@@ -146,10 +146,144 @@ std::pair<std::vector<std::pair<int, int>>, std::vector<int>> Mesh::find_adjacen
     return std::make_pair(adjacent_edges_vector, adjacent_triangles_vector);
 }
 
-// Function to calculate angle between two points with respect to a reference point
-double calculateAngle(const point_t& a, const point_t& reference) {
-    return std::atan2(a[1] - reference[1], a[0] - reference[0]);
+// Function to calculate the signed area of a triangle
+double calculate_signed_area(const point_t& v1, const point_t& v2, const point_t& v3) {
+    return 0.5 * (v1[0] * (v2[1] - v3[1]) + v2[0] * (v3[1] - v1[1]) + v3[0] * (v1[1] - v2[1]));
 }
+
+// Find neighboring vertices by vertex index
+void Mesh::find_vertex_connectivity(int vertex_index, std::vector<int> &neighborList, std::vector<int> &neighborMap) {
+    std::unordered_set<int> neighboring_vertices;
+
+    // Find triangles containing the vertex
+    auto triangles_containing_vertex = vertex_to_triangles.find(vertex_index);
+    if (triangles_containing_vertex != vertex_to_triangles.end()) {
+        // Iterate over each triangle that contains the vertex
+        for (int triangle_index : triangles_containing_vertex->second) {
+            const std::vector<int>& triangle = triangles[triangle_index];
+
+            // Find the other vertices in the same triangle
+            for (int j = 0; j < 3; ++j) {
+                if (triangle[j] != vertex_index) {
+                    neighboring_vertices.insert(triangle[j]);
+                }
+            }
+        }
+
+        // Convert set to vector to return unique neighboring vertices
+        neighborList = std::vector<int>(neighboring_vertices.begin(), neighboring_vertices.end());
+
+        // Iterate over each triangle that contains the vertex
+        for (int triangle_index : triangles_containing_vertex->second) {
+            const std::vector<int>& triangle = triangles[triangle_index];
+
+            // Find the other vertices in the same triangle
+            std::vector<int> other_vertices;
+            for (int j = 0; j < 3; ++j) {
+                if (triangle[j] != vertex_index) {
+                    // Add vertex to neighborMap
+                    for (int i = 0; i < neighborList.size(); i++) {
+                        if (neighborList[i] == triangle[j]) {
+                            neighborMap.push_back(i);
+                            other_vertices.push_back(neighborList[i]);
+                        }
+                    }
+                }
+            }
+
+            // If we have two other vertices in the triangle, calculate the area
+            if (other_vertices.size() == 2) {
+                int v1_idx = other_vertices[0];
+                int v2_idx = other_vertices[1];
+
+                // Calculate the signed area of the triangle formed by the current vertex and its two neighbors
+                double area = calculate_signed_area(
+                    source_points[vertex_index],  // Current vertex
+                    source_points[v1_idx],        // First neighbor
+                    source_points[v2_idx]         // Second neighbor
+                );
+
+                // If the area is negative, swap the two neighbor indices to correct the orientation
+                if (area < 0.0f) {
+                    std::swap(neighborMap[neighborMap.size() - 1], neighborMap[neighborMap.size() - 2]);
+                }
+            }
+        }
+    }
+}
+
+// Compute the angle between two vectors
+double compute_angle(const point_t &v1, const point_t &v2) {
+    double dot_product = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+    double length_v1 = std::sqrt(v1[0] * v1[0] + v1[1] * v1[1] + v1[2] * v1[2]);
+    double length_v2 = std::sqrt(v2[0] * v2[0] + v2[1] * v2[1] + v2[2] * v2[2]);
+    return std::acos(dot_product / (length_v1 * length_v2));
+}
+
+// Find the normal vector for the given vertex
+point_t Mesh::calculate_vertex_normal(std::vector<point_t> &points, int vertex_index) {
+    point_t final_normal = {0.0, 0.0, 0.0};
+    double total_weight = 0.0;
+
+    // Find triangles connected to the vertex
+    auto triangles_containing_vertex = vertex_to_triangles.find(vertex_index);
+    if (triangles_containing_vertex != vertex_to_triangles.end()) {
+        // Iterate over each triangle containing the vertex
+        for (int triangle_index : triangles_containing_vertex->second) {
+            const std::vector<int>& triangle = triangles[triangle_index];
+
+            // Get the three vertices of the triangle
+            point_t p0 = points[triangle[0]];
+            point_t p1 = points[triangle[1]];
+            point_t p2 = points[triangle[2]];
+
+            // Determine which vertex in the triangle corresponds to the vertex_index
+            point_t vertex, v1, v2;
+            if (triangle[0] == vertex_index) {
+                vertex = p0; v1 = p1; v2 = p2;
+            } else if (triangle[1] == vertex_index) {
+                vertex = p1; v1 = p2; v2 = p0;
+            } else {
+                vertex = p2; v1 = p0; v2 = p1;
+            }
+
+            // Compute two edges of the triangle
+            point_t edge1 = {v1[0] - vertex[0], v1[1] - vertex[1], v1[2] - vertex[2]};
+            point_t edge2 = {v2[0] - vertex[0], v2[1] - vertex[1], v2[2] - vertex[2]};
+
+            // Compute the normal of the triangle (cross product of two edges)
+            point_t normal = cross_product(edge1, edge2);
+            normal = normalize(normal);
+
+            // Compute the angle at the given vertex (between edge1 and edge2)
+            double angle = compute_angle(edge1, edge2);
+
+            // Add the weighted normal to the final normal
+            final_normal[0] += normal[0] * angle;
+            final_normal[1] += normal[1] * angle;
+            final_normal[2] += normal[2] * angle;
+
+            // Accumulate total weight (angle)
+            total_weight += angle;
+        }
+
+        // Normalize the final normal (weighted by angles)
+        final_normal[0] /= total_weight;
+        final_normal[1] /= total_weight;
+        final_normal[2] /= total_weight;
+
+        // Return the normalized final normal
+        return normalize(final_normal);
+    }
+
+    // If no triangles are connected, return a zero vector
+    return {0.0, 0.0, 0.0};
+}
+
+// Function to calculate angle between two points with respect to a reference point
+/*double calculateAngle(const point_t& a, const point_t& reference) {
+    return std::atan2(a[1] - reference[1], a[0] - reference[0]);
+}*/
 
 // Build a dual cell from a given vertex
 std::vector<point_t> Mesh::get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points) {
@@ -756,11 +890,15 @@ std::vector<std::vector<double>> Mesh::calculate_refractive_normals_uniform(doub
         double x_normal = transmitted[0] - incident[0] * refractive_index;
         double y_normal = transmitted[1] - incident[1] * refractive_index;
         double z_normal = transmitted[2] - incident[2] * refractive_index;
+        
+        std::vector<double> normal = {x_normal, y_normal, z_normal};
+
+        normal = normalize(normal);
 
         // (t - µi) / ||(t - µi)||
-        x_normals.push_back(x_normal / z_normal);
-        y_normals.push_back(y_normal / z_normal);
-        z_normals.push_back(z_normal / z_normal);
+        x_normals.push_back(normal[0]);
+        y_normals.push_back(normal[1]);
+        z_normals.push_back(normal[2]);
     }
 
     return {x_normals, y_normals, z_normals};
@@ -831,3 +969,89 @@ void Mesh::get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_v
         bottom_vertex = -1;
     }
 }
+
+// Function to calculate the approximate vertex normal
+/*std::vector<double> Mesh::calculate_vertex_normal(std::vector<std::vector<double>> &points, int vertex_index) {
+    std::vector<double> avg_normal = {0.0, 0.0, 0.0}; // Initialize normal to zero vector
+    
+    int left_vtx = 0;
+    int right_vtx = 0;
+    int top_vtx = 0;
+    int bot_vtx = 0;
+
+    //printf("aa\r\n");
+    
+    get_vertex_neighbor_ids(vertex_index, left_vtx, right_vtx, top_vtx, bot_vtx);
+
+    //printf("ab\r\n");
+
+    if (left_vtx != -1 && top_vtx != -1) {
+        std::vector<double> normal;
+        double angle_out;
+
+        calculate_angle_and_normal_from_triangle(points[vertex_index], points[left_vtx], points[top_vtx], normal, angle_out);
+
+        //printf("ac1\r\n"); fflush(stdout);
+        //printf("normal = {%f, %f, %f}, angle = %f\r\n", normal[0], normal[1], normal[2], angle_out); fflush(stdout);
+
+        avg_normal[0] += normal[0] * angle_out;
+        avg_normal[1] += normal[1] * angle_out;
+        avg_normal[2] += normal[2] * angle_out;
+    }
+
+    if (left_vtx != -1 && bot_vtx != -1) {
+        std::vector<double> normal;
+        double angle_out;
+
+        calculate_angle_and_normal_from_triangle(points[vertex_index], points[bot_vtx], points[left_vtx], normal, angle_out);
+
+        //printf("ac2\r\n"); fflush(stdout);
+        //printf("normal = {%f, %f, %f}, angle = %f\r\n", normal[0], normal[1], normal[2], angle_out); fflush(stdout);
+
+        avg_normal[0] += normal[0] * angle_out;
+        avg_normal[1] += normal[1] * angle_out;
+        avg_normal[2] += normal[2] * angle_out;
+    }
+
+    if (right_vtx != -1 && bot_vtx != -1) {
+        std::vector<double> normal;
+        double angle_out;
+
+        calculate_angle_and_normal_from_triangle(points[vertex_index], points[right_vtx], points[bot_vtx], normal, angle_out);
+
+        //printf("ac3\r\n"); fflush(stdout);
+        //printf("normal = {%f, %f, %f}, angle = %f\r\n", normal[0], normal[1], normal[2], angle_out); fflush(stdout);
+        
+        avg_normal[0] += normal[0] * angle_out;
+        avg_normal[1] += normal[1] * angle_out;
+        avg_normal[2] += normal[2] * angle_out;
+    }
+
+    if (right_vtx != -1 && top_vtx != -1) {
+        std::vector<double> normal;
+        double angle_out;
+
+        calculate_angle_and_normal_from_triangle(points[vertex_index], points[top_vtx], points[right_vtx], normal, angle_out);
+
+        //printf("ac4\r\n"); fflush(stdout);
+        //printf("normal = {%f, %f, %f}, angle = %f\r\n", normal[0], normal[1], normal[2], angle_out); fflush(stdout);
+        
+        avg_normal[0] += normal[0] * angle_out;
+        avg_normal[1] += normal[1] * angle_out;
+        avg_normal[2] += normal[2] * angle_out;
+    }
+
+    //printf("ad\r\n"); fflush(stdout);
+
+    // Calculate magnitude
+    //double magnitude = sqrt(avg_normal[0] * avg_normal[0] + avg_normal[1] * avg_normal[1] + avg_normal[2] * avg_normal[2]);
+
+    // Avoid division by zero
+    //if (magnitude > 1e-12) {
+    avg_normal[0] *= -1;
+    avg_normal[1] *= -1;
+
+    //printf("ae\r\n"); fflush(stdout);
+
+    return avg_normal;
+}*/

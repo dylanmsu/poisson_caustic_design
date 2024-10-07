@@ -60,92 +60,6 @@ void Caustic_design::save_solid_obj_source(const std::string& filename) {
     this->mesh->save_solid_obj_source(thickness, filename);
 }
 
-// Function to calculate the approximate vertex normal
-std::vector<double> Caustic_design::calculate_vertex_normal(std::vector<std::vector<double>> &points, int vertex_index) {
-    std::vector<double> avg_normal = {0.0, 0.0, 0.0}; // Initialize normal to zero vector
-    
-    int left_vtx = 0;
-    int right_vtx = 0;
-    int top_vtx = 0;
-    int bot_vtx = 0;
-
-    //printf("aa\r\n");
-    
-    mesh->get_vertex_neighbor_ids(vertex_index, left_vtx, right_vtx, top_vtx, bot_vtx);
-
-    //printf("ab\r\n");
-
-    if (left_vtx != -1 && top_vtx != -1) {
-        std::vector<double> normal;
-        double angle_out;
-
-        calculate_angle_and_normal_from_triangle(points[vertex_index], points[left_vtx], points[top_vtx], normal, angle_out);
-
-        //printf("ac1\r\n"); fflush(stdout);
-        //printf("normal = {%f, %f, %f}, angle = %f\r\n", normal[0], normal[1], normal[2], angle_out); fflush(stdout);
-
-        avg_normal[0] += normal[0] * angle_out;
-        avg_normal[1] += normal[1] * angle_out;
-        avg_normal[2] += normal[2] * angle_out;
-    }
-
-    if (left_vtx != -1 && bot_vtx != -1) {
-        std::vector<double> normal;
-        double angle_out;
-
-        calculate_angle_and_normal_from_triangle(points[vertex_index], points[bot_vtx], points[left_vtx], normal, angle_out);
-
-        //printf("ac2\r\n"); fflush(stdout);
-        //printf("normal = {%f, %f, %f}, angle = %f\r\n", normal[0], normal[1], normal[2], angle_out); fflush(stdout);
-
-        avg_normal[0] += normal[0] * angle_out;
-        avg_normal[1] += normal[1] * angle_out;
-        avg_normal[2] += normal[2] * angle_out;
-    }
-
-    if (right_vtx != -1 && bot_vtx != -1) {
-        std::vector<double> normal;
-        double angle_out;
-
-        calculate_angle_and_normal_from_triangle(points[vertex_index], points[right_vtx], points[bot_vtx], normal, angle_out);
-
-        //printf("ac3\r\n"); fflush(stdout);
-        //printf("normal = {%f, %f, %f}, angle = %f\r\n", normal[0], normal[1], normal[2], angle_out); fflush(stdout);
-        
-        avg_normal[0] += normal[0] * angle_out;
-        avg_normal[1] += normal[1] * angle_out;
-        avg_normal[2] += normal[2] * angle_out;
-    }
-
-    if (right_vtx != -1 && top_vtx != -1) {
-        std::vector<double> normal;
-        double angle_out;
-
-        calculate_angle_and_normal_from_triangle(points[vertex_index], points[top_vtx], points[right_vtx], normal, angle_out);
-
-        //printf("ac4\r\n"); fflush(stdout);
-        //printf("normal = {%f, %f, %f}, angle = %f\r\n", normal[0], normal[1], normal[2], angle_out); fflush(stdout);
-        
-        avg_normal[0] += normal[0] * angle_out;
-        avg_normal[1] += normal[1] * angle_out;
-        avg_normal[2] += normal[2] * angle_out;
-    }
-
-    //printf("ad\r\n"); fflush(stdout);
-
-    // Calculate magnitude
-    //double magnitude = sqrt(avg_normal[0] * avg_normal[0] + avg_normal[1] * avg_normal[1] + avg_normal[2] * avg_normal[2]);
-
-    // Avoid division by zero
-    //if (magnitude > 1e-12) {
-    avg_normal[0] *= -1;
-    avg_normal[1] *= -1;
-
-    //printf("ae\r\n"); fflush(stdout);
-
-    return avg_normal;
-}
-
 void clamp(int &value, int min, int max) {
     value = std::max(std::min(value, max), min);
 }
@@ -247,7 +161,7 @@ double Caustic_design::perform_transport_iteration() {
     std::copy(mesh->target_points.begin(), mesh->target_points.end(), back_inserter(old_points));
 
     // step the mesh vertices in the direction of their gradient vector
-    mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.1f);
+    mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.05f);
 
     //mesh->laplacian_smoothing(mesh->target_points, 0.5f);
 
@@ -336,7 +250,9 @@ void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) 
 
     mesh = new Mesh(width, height, mesh_res_x, mesh_res_y);
 
-    printf("generated mesh, building dual cells\r\n");
+    printf("generated mesh\r\n");
+
+    mesh->export_to_svg("../mesh.svg", 1);
 
     //std::cout << "built mesh" << std::endl;
 
@@ -345,10 +261,10 @@ void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) 
     mesh->build_source_dual_cells(source_cells);
     //mesh.build_circular_target_dual_cells(circ_target_cells);
 
-    printf("generated dual mesh, integrating image\r\n");
-
     //std::vector<double> target_areas = get_target_areas(pixels, circ_target_cells, resolution_x, resolution_y, width, height);
     target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);
+
+    export_cells_as_svg(target_cells, scale_array_proportional(target_areas, 0.0f, 1.0f), "../cells.svg");
 
     phi.clear();
     h.clear();
