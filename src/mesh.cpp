@@ -42,7 +42,7 @@ void Mesh::build_source_bvh(int targetCellSize, int maxDepth) {
 }
 
 // generates a structured triangulation used for the parameterization
-void Mesh::generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<point_t> &points) {
+void Mesh::generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<std::vector<double>> &points) {
     printf("%i, %i, %f, %f\r\n", nx, ny, width, height);
     // Generate points
     for (int i = 0; i < ny; ++i) {
@@ -64,7 +64,7 @@ void Mesh::generate_structured_mesh(int nx, int ny, double width, double height,
 }
 
 // transforms a square grid into a circular grid -> to support circular lenses in the future
-/*void Mesh::circular_transform(std::vector<point_t> &input_points) {
+/*void Mesh::circular_transform(std::vector<std::vector<double>> &input_points) {
     for (int i = 0; i < input_points.size(); i++) {
         double x = input_points[i][0] - this->width/2.0f;
         double y = input_points[i][1] - this->height/2.0f;
@@ -77,10 +77,10 @@ void Mesh::generate_structured_mesh(int nx, int ny, double width, double height,
     }
 }*/
 
-std::vector<point_t> Mesh::circular_transform(std::vector<point_t> &input_points) {
-    std::vector<point_t> transformed_points;
+std::vector<std::vector<double>> Mesh::circular_transform(std::vector<std::vector<double>> &input_points) {
+    std::vector<std::vector<double>> transformed_points;
     for (int i = 0; i < input_points.size(); i++) {
-        point_t transformed_point(3);
+        std::vector<double> transformed_point(3);
 
         double x = input_points[i][0] - this->width/2.0f;
         double y = input_points[i][1] - this->height/2.0f;
@@ -146,13 +146,36 @@ std::pair<std::vector<std::pair<int, int>>, std::vector<int>> Mesh::find_adjacen
     return std::make_pair(adjacent_edges_vector, adjacent_triangles_vector);
 }
 
-// Function to calculate the signed area of a triangle
-double calculate_signed_area(const point_t& v1, const point_t& v2, const point_t& v3) {
-    return 0.5 * (v1[0] * (v2[1] - v3[1]) + v2[0] * (v3[1] - v1[1]) + v3[0] * (v1[1] - v2[1]));
+std::vector<double> cross(std::vector<double> v1, std::vector<double> v2) {
+    std::vector<double> result(3);
+    result[0] = v1[1]*v2[2] - v1[2]*v2[1];
+    result[1] = v1[2]*v2[0] - v1[0]*v2[2];
+    result[2] = v1[0]*v2[1] - v1[1]*v2[0];
+    return result;
 }
 
+
+double length(const std::vector<double>& v) {
+    double norm = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    return norm;
+}
+
+// Function to calculate the signed area of a triangle in 3D space
+double calculate_signed_area(const std::vector<double>& v1, const std::vector<double>& v2, const std::vector<double>& v3) {
+    // Compute the vectors representing the triangle's edges
+    std::vector<double> edge1 = {v2[0] - v1[0], v2[1] - v1[1], v2[2] - v1[2]};
+    std::vector<double> edge2 = {v3[0] - v1[0], v3[1] - v1[1], v3[2] - v1[2]};
+
+    // Compute the cross product of the edge vectors
+    std::vector<double> cross_product = cross(edge1, edge2);
+
+    // The signed area is half the magnitude of the cross product
+    double area = 0.5 * length(cross_product);
+
+    return area;
+}
 // Find neighboring vertices by vertex index
-void Mesh::find_vertex_connectivity(int vertex_index, std::vector<int> &neighborList, std::vector<int> &neighborMap) {
+void Mesh::find_vertex_connectivity(int vertex_index, std::vector<int>& neighborList, std::vector<int>& neighborMap) {
     std::unordered_set<int> neighboring_vertices;
 
     // Find triangles containing the vertex
@@ -165,7 +188,7 @@ void Mesh::find_vertex_connectivity(int vertex_index, std::vector<int> &neighbor
             // Find the other vertices in the same triangle
             for (int j = 0; j < 3; ++j) {
                 if (triangle[j] != vertex_index) {
-                    neighboring_vertices.insert(triangle[j]);
+                    neighboring_vertices.insert(triangle[j]);  // Collect unique neighbors
                 }
             }
         }
@@ -173,38 +196,42 @@ void Mesh::find_vertex_connectivity(int vertex_index, std::vector<int> &neighbor
         // Convert set to vector to return unique neighboring vertices
         neighborList = std::vector<int>(neighboring_vertices.begin(), neighboring_vertices.end());
 
-        // Iterate over each triangle that contains the vertex
+        // Now construct neighborMap, ensuring pairs of neighbors are stored correctly
         for (int triangle_index : triangles_containing_vertex->second) {
             const std::vector<int>& triangle = triangles[triangle_index];
-
-            // Find the other vertices in the same triangle
+            
+            // Store indices of the two neighbors that form a face with the current vertex
             std::vector<int> other_vertices;
             for (int j = 0; j < 3; ++j) {
                 if (triangle[j] != vertex_index) {
-                    // Add vertex to neighborMap
-                    for (int i = 0; i < neighborList.size(); i++) {
-                        if (neighborList[i] == triangle[j]) {
-                            neighborMap.push_back(i);
-                            other_vertices.push_back(neighborList[i]);
-                        }
-                    }
+                    other_vertices.push_back(triangle[j]);
                 }
             }
 
-            // If we have two other vertices in the triangle, calculate the area
+            // We should always have exactly 2 "other vertices" per triangle containing this vertex
             if (other_vertices.size() == 2) {
                 int v1_idx = other_vertices[0];
                 int v2_idx = other_vertices[1];
 
-                // Calculate the signed area of the triangle formed by the current vertex and its two neighbors
+                // Find the indices of these vertices in neighborList and add to neighborMap
+                for (int i = 0; i < neighborList.size(); ++i) {
+                    if (neighborList[i] == v1_idx) {
+                        neighborMap.push_back(i);  // Add index of the first neighbor
+                    }
+                    if (neighborList[i] == v2_idx) {
+                        neighborMap.push_back(i);  // Add index of the second neighbor
+                    }
+                }
+
+                // Optionally, check triangle area to ensure correct orientation
                 double area = calculate_signed_area(
                     source_points[vertex_index],  // Current vertex
                     source_points[v1_idx],        // First neighbor
                     source_points[v2_idx]         // Second neighbor
                 );
 
-                // If the area is negative, swap the two neighbor indices to correct the orientation
-                if (area < 0.0f) {
+                // Swap the last two neighborMap entries if the area is negative (to correct orientation)
+                if (area < 0.0) {
                     std::swap(neighborMap[neighborMap.size() - 1], neighborMap[neighborMap.size() - 2]);
                 }
             }
@@ -212,8 +239,37 @@ void Mesh::find_vertex_connectivity(int vertex_index, std::vector<int> &neighbor
     }
 }
 
+void Mesh::get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_vertex, int &top_vertex, int &bottom_vertex) {
+    int y = vertex_id / res_x;
+    int x = vertex_id % res_x;
+
+    if (x != 0) {
+        left_vertex = (y) * res_x + (x - 1);
+    } else {
+        left_vertex = -1;
+    }
+
+    if (y != 0) {
+        top_vertex = (y - 1) * res_x + (x);
+    } else {
+        top_vertex = -1;
+    }
+
+    if (x != res_x - 1) {
+        right_vertex = (y) * res_x + (x + 1);
+    } else {
+        right_vertex = -1;
+    }
+
+    if (y != res_y - 1) {
+        bottom_vertex = (y + 1) * res_x + (x);
+    } else {
+        bottom_vertex = -1;
+    }
+}
+
 // Compute the angle between two vectors
-double compute_angle(const point_t &v1, const point_t &v2) {
+double compute_angle(const std::vector<double> &v1, const std::vector<double> &v2) {
     double dot_product = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
     double length_v1 = std::sqrt(v1[0] * v1[0] + v1[1] * v1[1] + v1[2] * v1[2]);
     double length_v2 = std::sqrt(v2[0] * v2[0] + v2[1] * v2[1] + v2[2] * v2[2]);
@@ -221,8 +277,8 @@ double compute_angle(const point_t &v1, const point_t &v2) {
 }
 
 // Find the normal vector for the given vertex
-point_t Mesh::calculate_vertex_normal(std::vector<point_t> &points, int vertex_index) {
-    point_t final_normal = {0.0, 0.0, 0.0};
+std::vector<double> Mesh::calculate_vertex_normal(std::vector<std::vector<double>> &points, int vertex_index) {
+    std::vector<double> final_normal = {0.0, 0.0, 0.0};
     double total_weight = 0.0;
 
     // Find triangles connected to the vertex
@@ -233,12 +289,12 @@ point_t Mesh::calculate_vertex_normal(std::vector<point_t> &points, int vertex_i
             const std::vector<int>& triangle = triangles[triangle_index];
 
             // Get the three vertices of the triangle
-            point_t p0 = points[triangle[0]];
-            point_t p1 = points[triangle[1]];
-            point_t p2 = points[triangle[2]];
+            std::vector<double> p0 = points[triangle[0]];
+            std::vector<double> p1 = points[triangle[1]];
+            std::vector<double> p2 = points[triangle[2]];
 
             // Determine which vertex in the triangle corresponds to the vertex_index
-            point_t vertex, v1, v2;
+            std::vector<double> vertex, v1, v2;
             if (triangle[0] == vertex_index) {
                 vertex = p0; v1 = p1; v2 = p2;
             } else if (triangle[1] == vertex_index) {
@@ -248,11 +304,11 @@ point_t Mesh::calculate_vertex_normal(std::vector<point_t> &points, int vertex_i
             }
 
             // Compute two edges of the triangle
-            point_t edge1 = {v1[0] - vertex[0], v1[1] - vertex[1], v1[2] - vertex[2]};
-            point_t edge2 = {v2[0] - vertex[0], v2[1] - vertex[1], v2[2] - vertex[2]};
+            std::vector<double> edge1 = {v1[0] - vertex[0], v1[1] - vertex[1], v1[2] - vertex[2]};
+            std::vector<double> edge2 = {v2[0] - vertex[0], v2[1] - vertex[1], v2[2] - vertex[2]};
 
             // Compute the normal of the triangle (cross product of two edges)
-            point_t normal = cross_product(edge1, edge2);
+            std::vector<double> normal = cross_product(edge1, edge2);
             normal = normalize(normal);
 
             // Compute the angle at the given vertex (between edge1 and edge2)
@@ -281,12 +337,12 @@ point_t Mesh::calculate_vertex_normal(std::vector<point_t> &points, int vertex_i
 }
 
 // Function to calculate angle between two points with respect to a reference point
-/*double calculateAngle(const point_t& a, const point_t& reference) {
+/*double calculateAngle(const std::vector<double>& a, const std::vector<double>& reference) {
     return std::atan2(a[1] - reference[1], a[0] - reference[0]);
 }*/
 
 // Build a dual cell from a given vertex
-std::vector<point_t> Mesh::get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points) {
+std::vector<std::vector<double>> Mesh::get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points) {
     std::vector<std::pair<int, int>> adjacent_edges;
     std::vector<int> adjacent_triangles;
 
@@ -297,16 +353,16 @@ std::vector<point_t> Mesh::get_barycentric_dual_cell(int point, std::vector<std:
     adjacent_triangles = adjacent_elements.second;
 
     // Store dual cell vertices
-    std::vector<point_t> dual_points;
+    std::vector<std::vector<double>> dual_points;
 
     // Append triangle centroids to the dual cell vertices with angles
     for (int i = 0; i < adjacent_triangles.size(); i++) {
         int triangle_index = adjacent_triangles[i];
 
         const std::vector<int>& triangle = this->triangles[triangle_index];
-        const point_t& p1 = points[triangle[0]];
-        const point_t& p2 = points[triangle[1]];
-        const point_t& p3 = points[triangle[2]];
+        const std::vector<double>& p1 = points[triangle[0]];
+        const std::vector<double>& p2 = points[triangle[1]];
+        const std::vector<double>& p3 = points[triangle[2]];
 
         // Centroid of the triangle
         double centroid_x = (p1[0] + p2[0] + p3[0]) / 3.0;
@@ -319,8 +375,8 @@ std::vector<point_t> Mesh::get_barycentric_dual_cell(int point, std::vector<std:
     for (int i = 0; i < adjacent_edges.size(); i++) {
         std::pair<int, int> edge = adjacent_edges[i];
 
-        const point_t& p1 = points[edge.first];
-        const point_t& p2 = points[edge.second];
+        const std::vector<double>& p1 = points[edge.first];
+        const std::vector<double>& p2 = points[edge.second];
 
         // Centroid of the edge
         double centroid_x = (p1[0] + p2[0]) / 2.0;
@@ -331,7 +387,7 @@ std::vector<point_t> Mesh::get_barycentric_dual_cell(int point, std::vector<std:
 
     double epsilon = std::numeric_limits<double>::epsilon();
 
-    std::vector<point_t> dual_points_copy;
+    std::vector<std::vector<double>> dual_points_copy;
     dual_points_copy.resize(dual_points.size());
 
     // add the vertex itself to the dual vertices if there are less than 4 adjacent triangles
@@ -341,12 +397,12 @@ std::vector<point_t> Mesh::get_barycentric_dual_cell(int point, std::vector<std:
         }
 
         // add point that is slightly moved away from the other vertices instead of the point itself
-        //point_t current_centroid = calculate_polygon_centroid(dual_points_copy);
-        //point_t new_point = {current_centroid[0]*epsilon, current_centroid[1]*epsilon};
+        //std::vector<double> current_centroid = calculate_polygon_centroid(dual_points_copy);
+        //std::vector<double> new_point = {current_centroid[0]*epsilon, current_centroid[1]*epsilon};
         //dual_points_copy.push_back(new_point);
         dual_points_copy.push_back(points[point]);
 
-        std::sort(dual_points.begin(), dual_points.end(), [&](const point_t& a, const point_t& b) {
+        std::sort(dual_points.begin(), dual_points.end(), [&](const std::vector<double>& a, const std::vector<double>& b) {
             double angle_a = std::atan2(a[1] - points[point][1], a[0] - points[point][0]);
             double angle_b = std::atan2(b[1] - points[point][1], b[0] - points[point][0]);
             return angle_a < angle_b;
@@ -374,7 +430,7 @@ std::vector<point_t> Mesh::get_barycentric_dual_cell(int point, std::vector<std:
         }*/
     } else {
         // Sort triangles and edges based on angles with respect to the centroid
-        std::sort(dual_points.begin(), dual_points.end(), [&](const point_t& a, const point_t& b) {
+        std::sort(dual_points.begin(), dual_points.end(), [&](const std::vector<double>& a, const std::vector<double>& b) {
             double angle_a = std::atan2(a[1] - points[point][1], a[0] - points[point][0]);
             double angle_b = std::atan2(b[1] - points[point][1], b[0] - points[point][0]);
             return angle_a < angle_b;
@@ -385,26 +441,26 @@ std::vector<point_t> Mesh::get_barycentric_dual_cell(int point, std::vector<std:
 }
 
 // build barycentric dual mesh for the source mesh
-void Mesh::build_source_dual_cells(std::vector<std::vector<point_t>> &cells) {
+void Mesh::build_source_dual_cells(std::vector<std::vector<std::vector<double>>> &cells) {
     for (int i=0; i<this->source_points.size(); i++) {
-        std::vector<point_t> cell = get_barycentric_dual_cell(i, this->source_points);
+        std::vector<std::vector<double>> cell = get_barycentric_dual_cell(i, this->source_points);
         cells.push_back(cell);
     }
 }
 
 // build barycentric dual mesh for the target mesh
-void Mesh::build_target_dual_cells(std::vector<std::vector<point_t>> &cells) {
+void Mesh::build_target_dual_cells(std::vector<std::vector<std::vector<double>>> &cells) {
     for (int i=0; i<this->target_points.size(); i++) {
-        std::vector<point_t> cell = get_barycentric_dual_cell(i, this->target_points);
+        std::vector<std::vector<double>> cell = get_barycentric_dual_cell(i, this->target_points);
         cells.push_back(cell);
     }
 }
 
 // build barycentric dual mesh for the target mesh
-void Mesh::build_circular_target_dual_cells(std::vector<std::vector<point_t>> &cells) {
-    std::vector<point_t> temp_points = circular_transform(source_points);
+void Mesh::build_circular_target_dual_cells(std::vector<std::vector<std::vector<double>>> &cells) {
+    std::vector<std::vector<double>> temp_points = circular_transform(source_points);
     for (int i=0; i<temp_points.size(); i++) {
-        std::vector<point_t> cell = get_barycentric_dual_cell(i, temp_points);
+        std::vector<std::vector<double>> cell = get_barycentric_dual_cell(i, temp_points);
         cells.push_back(cell);
     }
 }
@@ -437,7 +493,7 @@ std::vector<std::vector<double>> Mesh::interpolate_raster_target(const std::vect
     for (int i = 0; i < res_y; ++i) {
         std::vector<double> row;
         for (int j = 0; j < res_x; ++j) {
-            point_t point = {x[j], y[i]};
+            std::vector<double> point = {x[j], y[i]};
             Hit hit;
             bool intersection = false;
             target_bvh->query(point, hit, intersection);
@@ -494,7 +550,7 @@ std::vector<std::vector<double>> Mesh::interpolate_raster_source(const std::vect
     for (int i = 0; i < res_y; ++i) {
         std::vector<double> row;
         for (int j = 0; j < res_x; ++j) {
-            point_t point = {x[j], y[i]};
+            std::vector<double> point = {x[j], y[i]};
             Hit hit;
             bool intersection = false;
             source_bvh->query(point, hit, intersection);
@@ -593,8 +649,8 @@ void Mesh::calculate_and_export_inverted_transport_map(std::string filename, dou
 }
 
 // find the maximum delta_t given a triangle and the vertex velocities where the triangle will collapse
-std::vector<double> find_t(const point_t& p1, const point_t& p2, const point_t& p3,
-                              const point_t& dp1, const point_t& dp2, const point_t& dp3) {
+std::vector<double> find_t(const std::vector<double>& p1, const std::vector<double>& p2, const std::vector<double>& p3,
+                              const std::vector<double>& dp1, const std::vector<double>& dp2, const std::vector<double>& dp3) {
     double x1 = p2[0] - p1[0], y1 = p2[1] - p1[1];
     double x2 = p3[0] - p1[0], y2 = p3[1] - p1[1];
     double u1 = dp2[0] - dp1[0], v1 = dp2[1] - dp1[1];
@@ -807,7 +863,7 @@ void Mesh::export_paramererization_to_svg(std::string filename, double stroke_wi
 }*/
 
 // calculate target vertex normals for refractive caustics
-std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal_len, double refractive_index) {
+/*std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal_len, double refractive_index) {
     std::vector<double> x_normals;
     std::vector<double> y_normals;
     std::vector<double> z_normals;
@@ -850,7 +906,7 @@ std::vector<std::vector<double>> Mesh::calculate_refractive_normals(double focal
     }
 
     return {x_normals, y_normals, z_normals};
-}
+}*/
 
 // calculate target vertex normals for refractive caustics
 std::vector<std::vector<double>> Mesh::calculate_refractive_normals_uniform(double focal_len, double refractive_index) {
@@ -891,11 +947,18 @@ std::vector<std::vector<double>> Mesh::calculate_refractive_normals_uniform(doub
         double y_normal = transmitted[1] - incident[1] * refractive_index;
         double z_normal = transmitted[2] - incident[2] * refractive_index;
         
-        std::vector<double> normal = {x_normal, y_normal, z_normal};
+        std::vector<double> normal = {x_normal, y_normal, -z_normal};
 
         normal = normalize(normal);
 
         // (t - µi) / ||(t - µi)||
+        
+        /*
+        x_normals.push_back(normal[0]);
+        y_normals.push_back(normal[1]);
+        z_normals.push_back(normal[2]);
+        //*/
+
         x_normals.push_back(normal[0]);
         y_normals.push_back(normal[1]);
         z_normals.push_back(normal[2]);
@@ -941,33 +1004,27 @@ void Mesh::save_solid_obj_target(double thickness, const std::string& filename) 
     save_solid_obj(this->target_points, this->source_points, this->triangles, thickness, this->width, this->height, this->res_x, this->res_y, filename);
 }
 
-void Mesh::get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_vertex, int &top_vertex, int &bottom_vertex) {
+bool Mesh::is_border(int vertex_id) {
     int y = vertex_id / res_x;
     int x = vertex_id % res_x;
 
-    if (x != 0) {
-        left_vertex = (y) * res_x + (x - 1);
-    } else {
-        left_vertex = -1;
+    if (x == 0) {
+        return true;
     }
 
-    if (y != 0) {
-        top_vertex = (y - 1) * res_x + (x);
-    } else {
-        top_vertex = -1;
+    if (y == 0) {
+        return true;
     }
 
-    if (x != res_x - 1) {
-        right_vertex = (y) * res_x + (x + 1);
-    } else {
-        right_vertex = -1;
+    if (x == res_x - 1) {
+        return true;
     }
 
-    if (y != res_y - 1) {
-        bottom_vertex = (y + 1) * res_x + (x);
-    } else {
-        bottom_vertex = -1;
+    if (y == res_y - 1) {
+        return true;
     }
+
+    return false;
 }
 
 // Function to calculate the approximate vertex normal

@@ -99,6 +99,8 @@ class Mesh {
         void get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_vertex, int &top_vertex, int &bottom_vertex);
 
         std::vector<double> calculate_vertex_normal(std::vector<std::vector<double>> &points, int vertex_index);
+
+        bool is_border(int vertex_id);
 };
 
 #endif

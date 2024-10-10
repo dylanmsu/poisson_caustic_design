@@ -29,6 +29,8 @@ using ceres::Solve;
 
 Caustic_design caustic_design;
 
+vector<glm::vec3> x_sources;
+
 void image_to_grid(const cimg_library::CImg<unsigned char>& image, std::vector<std::vector<double>>& image_grid) {
     for (int i = 0; i < image.height(); ++i) {
         std::vector<double> row;
@@ -292,10 +294,10 @@ void gatherVertexInformation(Mesh &mesh, uint vertexIndex, vector<int> &neighbor
  * @param gridNeighbors The horizontal and vertical neighbors of the current vertex
  * @param vertices The reference to the vertices. Each vertex uses three doubles (x,y,z).
  */
-void addResidualBlocks(Problem *problem, uint vertexIndex, vector<int> &neighbors, vector<int> &neighborMap, vector<int> & gridNeighbors, double *vertices, std::vector<std::vector<double>> &normals)
+void addResidualBlocks(Problem *problem, uint vertexIndex, vector<int> &neighbors, vector<int> &neighborMap, vector<int> &gridNeighbors, double *vertices, glm::vec3 &trg_normal)
 {
-    /*float weightMult = 1.0;
-    if(model->meshes[0].edgeToNoEdgeMapping[vertexIndex] == -1) // we have an edge. Set weight for edir extremely high
+    float weightMult = 1.0;
+    if(caustic_design.mesh->is_border(vertexIndex)) // we have an edge. Set weight for edir extremely high
         weightMult = 10000;
 
     // EDir depends on the original position
@@ -306,39 +308,37 @@ void addResidualBlocks(Problem *problem, uint vertexIndex, vector<int> &neighbor
                 cost_function_edir,
                 NULL, // no loss function
                 &vertices[vertexIndex*3]
-                );*/
+                );//*/
 
 
-    if(true){//model->meshes[0].edgeToNoEdgeMapping[vertexIndex] != -1){ //not an edge we optimize the normals
+    if(true){//caustic_design.mesh->is_border(vertexIndex)){ //not an edge we optimize the normals
         // For eint we have several functors, each for a different amount of neighbors
         switch(neighbors.size()){
         case 2:
         {
-            glm::vec3 trg_normal = {normals[0][vertexIndex], normals[1][vertexIndex], normals[2][vertexIndex]};
 
-            CostFunction* cost_function_eint2 =
-                new AutoDiffCostFunction<CostFunctorEint2Neighbors, 3, 3, 3, 3>(new CostFunctorEint2Neighbors(&trg_normal, neighborMap));
+            /*CostFunction* cost_function_eint2 =
+                new AutoDiffCostFunction<CostFunctorEint2Neighbors, 3, 3, 3, 3>(new CostFunctorEint2Neighbors(trg_normal, neighborMap));
 
             problem->AddResidualBlock(cost_function_eint2, NULL,
                                        &vertices[vertexIndex*3], // vertex
                                        &vertices[neighbors[0]*3], // and the neighbors..
-                                       &vertices[neighbors[1]*3]);
+                                       &vertices[neighbors[1]*3]);//*/
 
 
             break;
             }
         case 3:
         {
-            glm::vec3 trg_normal = {normals[0][vertexIndex], normals[1][vertexIndex], normals[2][vertexIndex]};
 
-            CostFunction* cost_function_eint3 =
-                new AutoDiffCostFunction<CostFunctorEint3Neighbors, 3, 3, 3, 3, 3>(new CostFunctorEint3Neighbors(&trg_normal, neighborMap));
+            /*CostFunction* cost_function_eint3 =
+                new AutoDiffCostFunction<CostFunctorEint3Neighbors, 3, 3, 3, 3, 3>(new CostFunctorEint3Neighbors(trg_normal, neighborMap));
 
             problem->AddResidualBlock(cost_function_eint3, NULL,
                                        &vertices[vertexIndex*3], // vertex
                                        &vertices[neighbors[0]*3], // and the neighbors..
                                        &vertices[neighbors[1]*3],
-                                       &vertices[neighbors[2]*3]);
+                                       &vertices[neighbors[2]*3]);//*/
 
 
             break;
@@ -346,17 +346,16 @@ void addResidualBlocks(Problem *problem, uint vertexIndex, vector<int> &neighbor
 
         case 4:
         {
-            glm::vec3 trg_normal = {normals[0][vertexIndex], normals[1][vertexIndex], normals[2][vertexIndex]};
 
-            CostFunction* cost_function_eint4 =
-                new AutoDiffCostFunction<CostFunctorEint4Neighbors, 3, 3, 3, 3, 3, 3>(new CostFunctorEint4Neighbors(&trg_normal, neighborMap));
+            /*CostFunction* cost_function_eint4 =
+                new AutoDiffCostFunction<CostFunctorEint4Neighbors, 3, 3, 3, 3, 3, 3>(new CostFunctorEint4Neighbors(trg_normal, neighborMap));
 
             problem->AddResidualBlock(cost_function_eint4, NULL,
                                        &vertices[vertexIndex*3], // vertex
                                        &vertices[neighbors[0]*3], // and the neighbors..
                                        &vertices[neighbors[1]*3],
                                        &vertices[neighbors[2]*3],
-                                       &vertices[neighbors[3]*3]);
+                                       &vertices[neighbors[3]*3]);//*/
 
 
             break;
@@ -364,9 +363,8 @@ void addResidualBlocks(Problem *problem, uint vertexIndex, vector<int> &neighbor
 
         case 5:
         {
-            glm::vec3 trg_normal = {normals[0][vertexIndex], normals[1][vertexIndex], normals[2][vertexIndex]};
-            CostFunction* cost_function_eint5 =
-                new AutoDiffCostFunction<CostFunctorEint5Neighbors, 3, 3, 3, 3, 3, 3, 3>(new CostFunctorEint5Neighbors(&trg_normal, neighborMap));
+            /*CostFunction* cost_function_eint5 =
+                new AutoDiffCostFunction<CostFunctorEint5Neighbors, 3, 3, 3, 3, 3, 3, 3>(new CostFunctorEint5Neighbors(trg_normal, neighborMap));
 
             problem->AddResidualBlock(cost_function_eint5, NULL,
                            &vertices[vertexIndex*3], // vertex
@@ -374,7 +372,7 @@ void addResidualBlocks(Problem *problem, uint vertexIndex, vector<int> &neighbor
                            &vertices[neighbors[1]*3],
                            &vertices[neighbors[2]*3],
                            &vertices[neighbors[3]*3],
-                           &vertices[neighbors[4]*3]);
+                           &vertices[neighbors[4]*3]);//*/
 
 
 
@@ -383,9 +381,8 @@ void addResidualBlocks(Problem *problem, uint vertexIndex, vector<int> &neighbor
 
         case 6:
         {
-            glm::vec3 trg_normal = {normals[0][vertexIndex], normals[1][vertexIndex], normals[2][vertexIndex]};
             CostFunction* cost_function_eint6 =
-                new AutoDiffCostFunction<CostFunctorEint6Neighbors, 3, 3, 3, 3, 3, 3, 3, 3>(new CostFunctorEint6Neighbors(&trg_normal, neighborMap));
+                new AutoDiffCostFunction<CostFunctorEint6Neighbors, 3, 3, 3, 3, 3, 3, 3, 3>(new CostFunctorEint6Neighbors(trg_normal, neighborMap));
 
             problem->AddResidualBlock( cost_function_eint6, NULL,
                        &vertices[vertexIndex*3], // vertex
@@ -394,7 +391,7 @@ void addResidualBlocks(Problem *problem, uint vertexIndex, vector<int> &neighbor
                        &vertices[neighbors[2]*3],
                        &vertices[neighbors[3]*3],
                        &vertices[neighbors[4]*3],
-                       &vertices[neighbors[5]*3]);
+                       &vertices[neighbors[5]*3]);//*/
 
 
 
@@ -403,9 +400,8 @@ void addResidualBlocks(Problem *problem, uint vertexIndex, vector<int> &neighbor
 
         case 7:
         {
-            glm::vec3 trg_normal = {normals[0][vertexIndex], normals[1][vertexIndex], normals[2][vertexIndex]};
-            CostFunction* cost_function_eint7 =
-                new AutoDiffCostFunction<CostFunctorEint7Neighbors, 3, 3, 3, 3, 3, 3, 3, 3, 3>(new CostFunctorEint7Neighbors(&trg_normal, neighborMap));
+            /*CostFunction* cost_function_eint7 =
+                new AutoDiffCostFunction<CostFunctorEint7Neighbors, 3, 3, 3, 3, 3, 3, 3, 3, 3>(new CostFunctorEint7Neighbors(trg_normal, neighborMap));
 
             problem->AddResidualBlock( cost_function_eint7, NULL,
                        &vertices[vertexIndex*3], // vertex
@@ -415,7 +411,7 @@ void addResidualBlocks(Problem *problem, uint vertexIndex, vector<int> &neighbor
                        &vertices[neighbors[3]*3],
                        &vertices[neighbors[4]*3],
                        &vertices[neighbors[5]*3],
-                       &vertices[neighbors[6]*3]);
+                       &vertices[neighbors[6]*3]);//*/
 
 
             break;
@@ -423,9 +419,8 @@ void addResidualBlocks(Problem *problem, uint vertexIndex, vector<int> &neighbor
 
         case 8:
         {
-            glm::vec3 trg_normal = {normals[0][vertexIndex], normals[1][vertexIndex], normals[2][vertexIndex]};
-            CostFunction* cost_function_eint8 =
-                new AutoDiffCostFunction<CostFunctorEint8Neighbors, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3>(new CostFunctorEint8Neighbors(&trg_normal, neighborMap));
+            /*CostFunction* cost_function_eint8 =
+                new AutoDiffCostFunction<CostFunctorEint8Neighbors, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3>(new CostFunctorEint8Neighbors(trg_normal, neighborMap));
 
             problem->AddResidualBlock( cost_function_eint8, NULL,
                            &vertices[vertexIndex*3], // vertex
@@ -436,14 +431,14 @@ void addResidualBlocks(Problem *problem, uint vertexIndex, vector<int> &neighbor
                            &vertices[neighbors[4]*3],
                            &vertices[neighbors[5]*3],
                            &vertices[neighbors[6]*3],
-                           &vertices[neighbors[7]*3]);
+                           &vertices[neighbors[7]*3]);//*/
 
             break;
 
         }
 
         } // switch end
-    }
+    }//*/
 
     // regularization term with 4-neighborhood
     CostFunction* ereg;
@@ -485,7 +480,7 @@ void addResidualBlocks(Problem *problem, uint vertexIndex, vector<int> &neighbor
                     &vertices[gridNeighbors[3]*3]
                     );
         break;
-    }
+    }//*/
 }
 
 
@@ -534,7 +529,7 @@ int main(int argc, char const *argv[])
 
     printf("b\r\n");
     
-    for (int itr=0; itr<30; itr++) {
+    for (int itr=0; itr<6; itr++) {
         printf("starting iteration %i\r\n", itr);
         
         double step_size = caustic_design.perform_transport_iteration();
@@ -566,6 +561,21 @@ int main(int argc, char const *argv[])
 
     caustic_design.normals.clear();
     caustic_design.normals = caustic_design.mesh->calculate_refractive_normals_uniform(caustic_design.focal_l, 1.49);
+
+    std::vector<glm::vec3> desired_normals;
+
+    // make a copy of the original positions of the vertices
+    for (int i = 0; i < caustic_design.mesh->source_points.size(); i++) {
+        glm::vec3 v;
+        v.x = caustic_design.mesh->source_points[i][0];
+        v.y = caustic_design.mesh->source_points[i][1];
+        v.z = caustic_design.mesh->source_points[i][2];
+        x_sources.push_back(v);
+
+        glm::vec3 trg_normal = {caustic_design.normals[0][i], caustic_design.normals[1][i], caustic_design.normals[2][i]};
+
+        desired_normals.push_back(trg_normal);
+    }
 
     vector<vector<int> > neighborsPerVertex;
     neighborsPerVertex.resize(caustic_design.mesh->source_points.size());
@@ -608,7 +618,7 @@ int main(int argc, char const *argv[])
         std::cout << "neighborsPerVertex " << neighborsPerVertex[i].size() <<  std::endl;
         std::cout << "neighborMapPerVertex " << neighborMapPerVertex[i].size() <<  std::endl;
         std::cout << "eightNeighborsPerVertex " << eightNeighborsPerVertex[i].size() <<  std::endl;*/
-        addResidualBlocks(&prob, i, neighborsPerVertex[i], neighborMapPerVertex[i], eightNeighborsPerVertex[i], vertices, caustic_design.normals);
+        addResidualBlocks(&prob, i, neighborsPerVertex[i], neighborMapPerVertex[i], eightNeighborsPerVertex[i], vertices, desired_normals[i]);
     }
 
     Solver::Options options;
@@ -616,7 +626,7 @@ int main(int argc, char const *argv[])
     options.linear_solver_type = ceres::ITERATIVE_SCHUR;
     options.max_num_iterations = 200;
     options.dense_linear_algebra_library_type = ceres::LAPACK;
-    options.num_threads = 1;
+    options.num_threads = 16;
 
     string error;
     if(!options.IsValid(&error))
