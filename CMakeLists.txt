@@ -17,6 +17,7 @@ include_directories(${CMAKE_SOURCE_DIR}/src/vendor)
 # Add your source files here
 set(SOURCE_FILES 
     main.cpp
+    src/normal_integration.cpp
     src/caustic_design.cpp
     src/polygon_utils.cpp
     src/solver.cpp

@@ -3,13 +3,12 @@
 
 #include "ceres/ceres.h"
 #include "glog/logging.h"
-#include "glm/glm.hpp"
 
 #define EBAR_DETH 39
-#define EINT_WEIGHT 10
-#define EBAR_WEIGHT 1.0
-#define EDIR_WEIGHT 0.6
-#define EREG_WEIGHT 10.0
+#define EINT_WEIGHT 1.0
+//#define EBAR_WEIGHT 1.0
+#define EDIR_WEIGHT 1.0
+#define EREG_WEIGHT 5.0
 
 
 /******************************************************/
@@ -22,7 +21,7 @@ template<typename T> void cross(T* v1, T* v2, T* result);
 template<typename T> void calcFaceNormal(const T* const v1, const T* const v2, const T* const v3, T* result);
 template<typename T> T angle(T* v1, T* v2);
 template<typename T> void normalize(T* v);
-template<typename T> T evaluateInt(const T* const vertex, const T** neighbors, uint nNeighbors, const vector<int> & neighborMap, const glm::vec3 &desiredNormal, T* result);
+template<typename T> T evaluateInt(const T* const vertex, const T** neighbors, uint nNeighbors, const vector<int> & neighborMap, const std::vector<double> &desiredNormal, T* result);
 template<typename T> void calcVertexNormal(const T* vertex, T* result, T** faceNormals, const T** neighbors, const vector<int> & neighborMap);
 template<typename T> T evaluateReg(const T** const allVertices, const float* L, uint nVertices);
 
@@ -78,7 +77,7 @@ template<typename T> void normalize(T* v)
     //}
 }
 
-template<typename T> T evaluateInt(const T* const vertex, const T** neighbors, uint nNeighbors, const vector<int> & neighborMap, const glm::vec3 &desiredNormal, T* result)
+template<typename T> T evaluateInt(const T* const vertex, const T** neighbors, uint nNeighbors, const vector<int> & neighborMap, const std::vector<double> &desiredNormal, T* result)
 {
 
     T** faceNormals = new T*[neighborMap.size()/2];
@@ -107,9 +106,9 @@ template<typename T> T evaluateInt(const T* const vertex, const T** neighbors, u
 
 
     // evaluation
-    T x = vertexNormal[0] - T(desiredNormal.x);
-    T y = vertexNormal[1] - T(desiredNormal.y);
-    T z = vertexNormal[2] - T(desiredNormal.z);
+    T x = vertexNormal[0] - T(desiredNormal[0]);
+    T y = vertexNormal[1] - T(desiredNormal[1]);
+    T z = vertexNormal[2] - T(desiredNormal[2]);
 
     T res = T(EINT_WEIGHT) * ceres::sqrt(x*x + y*y + z*z);
     result[0] = x;
@@ -226,7 +225,7 @@ template<typename T> void evaluateReg(const T** const allVertices, const float* 
 
 class CostFunctorEint8Neighbors{
 public:
-    CostFunctorEint8Neighbors(glm::vec3 &desiredNormal, vector<int> & neighborMap): desiredNormal(desiredNormal), neighborMap(neighborMap)
+    CostFunctorEint8Neighbors(std::vector<double> &desiredNormal, vector<int> & neighborMap): desiredNormal(desiredNormal), neighborMap(neighborMap)
     {}
 
     template <typename T> bool operator()(const T* const vertex,
@@ -259,7 +258,7 @@ public:
     }
 
 private:
-    glm::vec3 desiredNormal;
+    std::vector<double> desiredNormal;
     vector<int> neighborMap;
 
 };
@@ -267,7 +266,7 @@ private:
 
 class CostFunctorEint7Neighbors{
 public:
-    CostFunctorEint7Neighbors(glm::vec3 &desiredNormal, vector<int> & neighborMap): desiredNormal(desiredNormal), neighborMap(neighborMap)
+    CostFunctorEint7Neighbors(std::vector<double> &desiredNormal, vector<int> & neighborMap): desiredNormal(desiredNormal), neighborMap(neighborMap)
     {}
 
     template <typename T> bool operator()(const T* const vertex,
@@ -298,7 +297,7 @@ public:
     }
 
 private:
-    glm::vec3 desiredNormal;
+    std::vector<double> desiredNormal;
     vector<int> neighborMap;
 
 };
@@ -306,7 +305,7 @@ private:
 
 class CostFunctorEint6Neighbors{
 public:
-    CostFunctorEint6Neighbors(glm::vec3 &desiredNormal, vector<int> & neighborMap): desiredNormal(desiredNormal), neighborMap(neighborMap)
+    CostFunctorEint6Neighbors(std::vector<double> &desiredNormal, vector<int> & neighborMap): desiredNormal(desiredNormal), neighborMap(neighborMap)
     {}
 
     template <typename T> bool operator()(const T* const vertex,
@@ -335,14 +334,14 @@ public:
     }
 
 private:
-    glm::vec3 desiredNormal;
+    std::vector<double> desiredNormal;
     vector<int> neighborMap;
 
 };
 
 class CostFunctorEint5Neighbors{
 public:
-    CostFunctorEint5Neighbors(glm::vec3 &desiredNormal, vector<int> & neighborMap): desiredNormal(desiredNormal), neighborMap(neighborMap)
+    CostFunctorEint5Neighbors(std::vector<double> &desiredNormal, vector<int> & neighborMap): desiredNormal(desiredNormal), neighborMap(neighborMap)
     {}
 
     template <typename T> bool operator()(const T* const vertex,
@@ -369,7 +368,7 @@ public:
     }
 
 private:
-    glm::vec3 desiredNormal;
+    std::vector<double> desiredNormal;
     vector<int> neighborMap;
 
 };
@@ -377,7 +376,7 @@ private:
 
 class CostFunctorEint4Neighbors{
 public:
-    CostFunctorEint4Neighbors(glm::vec3 &desiredNormal, vector<int> & neighborMap): desiredNormal(desiredNormal), neighborMap(neighborMap)
+    CostFunctorEint4Neighbors(std::vector<double> &desiredNormal, vector<int> & neighborMap): desiredNormal(desiredNormal), neighborMap(neighborMap)
     {}
 
     template <typename T> bool operator()(const T* const vertex,
@@ -402,7 +401,7 @@ public:
     }
 
 private:
-    glm::vec3 desiredNormal;
+    std::vector<double> desiredNormal;
     vector<int> neighborMap;
 
 };
@@ -410,7 +409,7 @@ private:
 
 class CostFunctorEint3Neighbors{
 public:
-    CostFunctorEint3Neighbors(glm::vec3 &desiredNormal, vector<int> & neighborMap): desiredNormal(desiredNormal), neighborMap(neighborMap)
+    CostFunctorEint3Neighbors(std::vector<double> &desiredNormal, vector<int> & neighborMap): desiredNormal(desiredNormal), neighborMap(neighborMap)
     {}
 
     template <typename T> bool operator()(const T* const vertex,
@@ -433,7 +432,7 @@ public:
     }
 
 private:
-    glm::vec3 desiredNormal;
+    std::vector<double> desiredNormal;
     vector<int> neighborMap;
 
 };
@@ -441,7 +440,7 @@ private:
 
 class CostFunctorEint2Neighbors{
 public:
-    CostFunctorEint2Neighbors(glm::vec3 &desiredNormal, vector<int> & neighborMap): desiredNormal(desiredNormal), neighborMap(neighborMap)
+    CostFunctorEint2Neighbors(std::vector<double> &desiredNormal, vector<int> & neighborMap): desiredNormal(desiredNormal), neighborMap(neighborMap)
     {}
 
     template <typename T> bool operator()(const T* const vertex,
@@ -461,7 +460,7 @@ public:
     }
 
 private:
-    glm::vec3 desiredNormal;
+    std::vector<double> desiredNormal;
     vector<int> neighborMap;
 
 };
@@ -804,7 +803,7 @@ private:
 
 /*class CostFunctorEbar2 {
 public:
-    CostFunctorEbar2 (glm::vec3* receiverPosition): receiverPosition(receiverPosition)
+    CostFunctorEbar2 (std::vector<double>* receiverPosition): receiverPosition(receiverPosition)
     {}
 
     template <typename T> bool operator()(const T* const vertex, T* e) const{
@@ -818,7 +817,7 @@ public:
     }
 
 private:
-    glm::vec3* receiverPosition;
+    std::vector<double>* receiverPosition;
 
 };*/
 
@@ -828,13 +827,13 @@ private:
 
 class CostFunctorEdir2{
 public:
-    CostFunctorEdir2(glm::vec3 * s, float weightMultiplicator): source(s), weightMultiplicator(weightMultiplicator) {
+    CostFunctorEdir2(std::vector<double> * s, float weightMultiplicator): source(s), weightMultiplicator(weightMultiplicator) {
     }
 
     template <typename T> bool operator()(const T* const vertex, T* e) const{
         // x - proj(..) will only return the difference in y- and z-coordinates. we may ignore the rest
-        T x = vertex[0] - T(source->x);
-        T y = vertex[1] - T(source->y);
+        T x = vertex[0] - T((*source)[0]);
+        T y = vertex[1] - T((*source)[1]);
         e[0] = T(EDIR_WEIGHT*weightMultiplicator) * x;
         e[1] = T(EDIR_WEIGHT*weightMultiplicator) * y;
         e[2] = T(0);
@@ -842,7 +841,7 @@ public:
     }
 
 private:
-    glm::vec3 * source;
+    std::vector<double> * source;
     float weightMultiplicator;
 };
 
