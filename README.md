@@ -16,10 +16,10 @@ Result simulated with Blender using LuxRender:
 
 ## Features
 
-- Implementation of the Poisson-based continuous surface generation algorithm.
+- Implementation of the Poisson-based continuous surface generation algorithm by Yue et al.
 - exports a solidified .obj
-- the only c++17 non-standard dependancy is libpng
-- can export the the inverse transport map
+- the only non-standard C++ dependancy is libpng
+- can export the the inverse transport map (can be used for for density sampling)
 - multithreaded poisson solver
 
 ## Installation
