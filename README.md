@@ -4,6 +4,11 @@
 
 This project implements and builds upon the method described in the paper [Poisson-Based Continuous Surface Generation for Goal-Based Caustics](http://nishitalab.org/user/egaku/tog14/continuous_caustics.pdf).
 
+## What does it do?
+With the code in this repository you can calculate the shape of a transparent window that casts an image if light passes through. 
+
+It does that by modulating the angle of the surface across the entire surface to steer the light in the desired directions.
+
 Result simulated with Blender using LuxRender:
 ![Alt text](./doc/lena_sim.gif)
 
