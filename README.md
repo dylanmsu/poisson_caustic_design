@@ -9,6 +9,8 @@ With the code in this repository you can calculate the shape of a transparent wi
 
 It does that by modulating the angle of the surface across the entire surface to steer the light in the desired directions.
 
+A more detailed explanation is that it first calculates from where on the lens surface to where on the screen the light should go. It then calculates the the shape of the lens such that it satisfies all these directions.
+
 Result simulated with Blender using LuxRender:
 ![Alt text](./doc/lena_sim.gif)
 
