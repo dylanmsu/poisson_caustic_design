@@ -4,10 +4,9 @@
 #include "ceres/ceres.h"
 #include "glog/logging.h"
 
-#define EBAR_DETH 39
-#define EINT_WEIGHT 1.0
+#define EINT_WEIGHT 0.05
 //#define EBAR_WEIGHT 1.0
-#define EDIR_WEIGHT 1.0
+#define EDIR_WEIGHT 5.0
 #define EREG_WEIGHT 5.0
 
 
@@ -111,9 +110,9 @@ template<typename T> T evaluateInt(const T* const vertex, const T** neighbors, u
     T z = vertexNormal[2] - T(desiredNormal[2]);
 
     T res = T(EINT_WEIGHT) * ceres::sqrt(x*x + y*y + z*z);
-    result[0] = x;
-    result[1] = y;
-    result[2] = z;
+    result[0] = x*T(EINT_WEIGHT);
+    result[1] = y*T(EINT_WEIGHT);
+    result[2] = z*T(EINT_WEIGHT);
 
     // -- clean
     delete[] vertexNormal;
@@ -174,14 +173,6 @@ template<typename T> void calcVertexNormal(const T* vertex, T* result, T** faceN
         }
 
     }
-
-    T sum = T(0);
-    for (uint i=0; i<3; i++)
-    {
-        sum += result[i] * result[i];
-    }
-
-    sum = ceres::sqrt(sum);
 
     normalize(result);
 }

@@ -155,7 +155,7 @@ int main(int argc, char const *argv[])
         printf("step_size = %f\r\n", step_size);
 
         // convergence treshold for the parameterization
-        if (step_size < 0.01) break;
+        if (step_size < 0.003) break;
     }
 
     printf("\033[0;32mTransport map solver done! Starting height solver.\033[0m\r\n");

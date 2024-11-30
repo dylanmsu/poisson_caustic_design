@@ -60,11 +60,27 @@ double patial_relax(std::vector<std::vector<double>> &output, std::vector<std::v
     return max_update;
 }
 
-void calculate_progress(int value, int minValue, int maxValue) {
-    const int barWidth = 50;
-
+void calculate_progress(double value, double minValue, double maxValue) {
     // Calculate the percentage completion
-    solver_progress = static_cast<double>(value - minValue) / (maxValue - minValue);
+    double solver_progress = static_cast<double>(value - minValue) / (maxValue - minValue);
+
+    // Define the width of the progress bar
+    int barWidth = 50;
+
+    // Calculate how much of the progress bar should be filled
+    int position = barWidth * solver_progress;
+
+    // Render the progress bar
+    printf("[");
+    for (int i = 0; i < barWidth; ++i) {
+        if (i < position) printf("=");      // Completed part of the bar
+        else if (i == position) printf(">");// Current progress marker
+        else printf(" ");                   // Remaining part of the bar
+    }
+
+    // Print the percentage at the end
+    printf("] %.2f%%\r", solver_progress * 100.0);
+    fflush(stdout);  // Ensure the output is displayed immediately
 }
 
 void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::vector<double>> &output, int width, int height, int max_iterations, double convergence_threshold, int max_threads) {
@@ -133,11 +149,10 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
         }
 
         // print progress to terminal
-        if (i % 100 == 0) {
-            printf("\33[2K\r");
-            printf("Solver max_update: %f, convergence at %.2e\r", log(1.0f / max_update), convergence_threshold);
-
+        if (i % 10 == 0) {
+            //printf("\33[2K\r");
             calculate_progress(log(1.0f / max_update), log(1.0f / initial_max_update), log(1.0f / convergence_threshold));
+            //printf("Solver progress: %f%\r\n", solver_progress * 100.0f);
         }
 
         // check for convergance
