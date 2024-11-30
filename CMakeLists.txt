@@ -29,11 +29,9 @@ set(SOURCE_FILES
 find_package(PNG REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(OpenCV REQUIRED)
 
 find_package(Ceres REQUIRED)
 include_directories(${CERES_INCLUDE_DIRS})
-include_directories(${OpenCV_INCLUDE_DIRS})
 
 # Create the executable
 add_executable(CausticEngineering ${SOURCE_FILES})
@@ -45,7 +43,7 @@ target_include_directories(CausticEngineering PUBLIC ${PNG_INCLUDE_DIRS})
 target_link_libraries(CausticEngineering PUBLIC ${PNG_LIBRARIES} ${ZLIB_LIBRARIES})
 
 # Link with X11 libraries
-target_link_libraries(CausticEngineering PUBLIC ${CERES_LIBRARIES} ${OpenCV_LIBS})
+target_link_libraries(CausticEngineering PUBLIC ${CERES_LIBRARIES})
 
 # Install the executable
 install(TARGETS CausticEngineering DESTINATION .)
