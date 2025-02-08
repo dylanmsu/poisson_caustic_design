@@ -24,7 +24,6 @@ set(SOURCE_FILES
 
 find_package(PNG REQUIRED)
 find_package(ZLIB REQUIRED)
-find_package(X11 REQUIRED)
 
 # Create the executable
 add_executable(CausticEngineering ${SOURCE_FILES})
@@ -34,9 +33,6 @@ target_include_directories(CausticEngineering PUBLIC ${PNG_INCLUDE_DIRS})
 
 # Link with libpng and zlib libraries
 target_link_libraries(CausticEngineering PUBLIC ${PNG_LIBRARIES} ${ZLIB_LIBRARIES})
-
-# Link with X11 libraries
-target_link_libraries(CausticEngineering PUBLIC ${X11_LIBRARIES})
 
 # Install the executable
 install(TARGETS CausticEngineering DESTINATION .)
