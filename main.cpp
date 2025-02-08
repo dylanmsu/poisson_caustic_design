@@ -282,7 +282,7 @@ int main(int argc, char const *argv[]) {
     caustic_design.save_solid_obj_source("../output.obj");
 
     // Save the heightmap to JSON
-    save_heightmap_as_json(caustic_design.h, "heightmap.json");
+    save_heightmap_as_json(caustic_design.h, "../heightmap.json");
 
     return 0;
 }
