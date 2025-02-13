@@ -651,7 +651,7 @@ void Caustic_design::perform_height_map_iteration(int itr) {
         vector_field[i] = normalize(vector_field[i]);
     }
     
-    std::vector<double> vertex_divergance = compute_divergence(mesh, vector_field);
+    //std::vector<double> vertex_divergance = compute_divergence(mesh, vector_field);
     //export_cells_as_svg(target_cells, scale_array_proportional(vertex_divergance, 0.0f, 1.0f), "../vertex_divergance.svg");
 
     // interpolates the vertex normals into a large uniform grid
