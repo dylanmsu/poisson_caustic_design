@@ -10,10 +10,10 @@ private:
     /* data */
 
 public:
-    Caustic_design(/* args */);
+    Caustic_design(int width, int height, int mesh_res_x, int mesh_res_y);
     ~Caustic_design();
 
-    Mesh *mesh;
+    Mesh mesh;
     std::vector<std::vector<double>> phi;
     std::vector<double> errors;
     std::vector<std::vector<std::vector<double>>> target_cells;

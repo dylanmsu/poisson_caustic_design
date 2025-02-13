@@ -3,8 +3,8 @@
 Mesh::Mesh(double width, double height, int res_x, int res_y)
 {
     // set physical size of mesh
-    this->width = width;
-    this->height = height;
+    this->width = width = 0.5;
+    this->height = height = 0.5;
 
     // set poisson domain resolution
     this->res_x = res_x;
@@ -20,6 +20,8 @@ Mesh::Mesh(double width, double height, int res_x, int res_y)
     for (int i=0; i<this->target_points.size(); i++) {
         this->source_points.push_back(this->target_points[i]);
     }
+
+    build_adjacency_lookups();
 
     // Create instance of the bvh class used for interpolation
     target_bvh = new Bvh(triangles, target_points);
@@ -117,10 +119,11 @@ void Mesh::build_vertex_to_triangles() {
     }
 }
 
-// find triangles and edges connected to a specific vertex by index
-std::pair<std::vector<std::pair<int, int>>, std::vector<int>> Mesh::find_adjacent_elements(int vertex_index) {
+// find triangles, edges, and neighboring vertices connected to a specific vertex by index
+std::tuple<std::vector<std::pair<int, int>>, std::vector<int>, std::vector<int>> Mesh::find_adjacent_elements(int vertex_index) {
     std::unordered_set<std::pair<int, int>, HashPair> adjacent_edges;
     std::unordered_set<int> adjacent_triangles;
+    std::unordered_set<int> neighboring_vertices;
 
     // Find triangles containing the vertex
     auto triangles_containing_vertex = vertex_to_triangles.find(vertex_index);
@@ -129,11 +132,21 @@ std::pair<std::vector<std::pair<int, int>>, std::vector<int>> Mesh::find_adjacen
             adjacent_triangles.insert(triangle_index);
             const std::vector<int>& triangle = triangles[triangle_index];
 
-            // Find edges directly connected to the vertex
+            // Find edges and neighboring vertices directly connected to the vertex
             for (int j = 0; j < 3; ++j) {
-                std::pair<int, int> edge = std::make_pair(triangle[j], triangle[(j + 1) % 3]);
-                if (vertex_index == edge.first || vertex_index == edge.second) {
-                    adjacent_edges.insert(std::make_pair(std::min(edge.first, edge.second), std::max(edge.first, edge.second)));
+                int v1 = triangle[j];
+                int v2 = triangle[(j + 1) % 3];
+
+                // Add edge if it involves the vertex
+                if (vertex_index == v1 || vertex_index == v2) {
+                    adjacent_edges.insert(std::make_pair(std::min(v1, v2), std::max(v1, v2)));
+                }
+
+                // Add neighboring vertex (other vertex of the edge if it's not the input vertex)
+                if (v1 == vertex_index) {
+                    neighboring_vertices.insert(v2);
+                } else if (v2 == vertex_index) {
+                    neighboring_vertices.insert(v1);
                 }
             }
         }
@@ -142,8 +155,51 @@ std::pair<std::vector<std::pair<int, int>>, std::vector<int>> Mesh::find_adjacen
     // Convert sets to vectors
     std::vector<std::pair<int, int>> adjacent_edges_vector(adjacent_edges.begin(), adjacent_edges.end());
     std::vector<int> adjacent_triangles_vector(adjacent_triangles.begin(), adjacent_triangles.end());
+    std::vector<int> neighboring_vertices_vector(neighboring_vertices.begin(), neighboring_vertices.end());
 
-    return std::make_pair(adjacent_edges_vector, adjacent_triangles_vector);
+    return std::make_tuple(adjacent_edges_vector, adjacent_triangles_vector, neighboring_vertices_vector);
+}
+
+bool Mesh::is_boundary_vertex(int vertex_index, std::vector<std::pair<int, int>>& boundary_edges) {
+    std::unordered_map<std::pair<int, int>, int, HashPair> edge_triangle_count;
+    for (int triangle_index : vertex_adjecent_triangles[vertex_index]) {
+        const std::vector<int>& triangle = triangles[triangle_index];
+        for (int j = 0; j < 3; ++j) {
+            int v1 = triangle[j];
+            int v2 = triangle[(j + 1) % 3];
+            std::pair<int, int> edge = std::make_pair(std::min(v1, v2), std::max(v1, v2));
+            edge_triangle_count[edge]++;
+        }
+    }
+
+    bool is_boundary = false;
+    for (const auto& edge : vertex_adjecent_edges[vertex_index]) {
+        if (edge_triangle_count[edge] == 1) { // Boundary edge
+            boundary_edges.push_back(edge);
+            is_boundary = true;
+        }
+    }
+
+    return is_boundary;
+}
+
+void Mesh::build_adjacency_lookups() {
+    for (int i = 0; i < target_points.size(); i++)
+    {
+        auto [adjacent_edges, adjacent_triangles, neighboring_vertices] = find_adjacent_elements(i);
+        vertex_adjecent_edges.push_back(adjacent_edges);
+        vertex_adjecent_triangles.push_back(adjacent_triangles);
+        vertex_adjecent_vertices.push_back(neighboring_vertices);
+    }
+
+    for (int i = 0; i < target_points.size(); i++)
+    {
+        std::vector<std::pair<int, int>> boundary_edges;
+        bool is_boundary = is_boundary_vertex(i, boundary_edges);
+        vertex_is_boundary.push_back(is_boundary);
+    }
+    
+    
 }
 
 // Function to calculate angle between two points with respect to a reference point
@@ -153,14 +209,9 @@ double calculateAngle(const point_t& a, const point_t& reference) {
 
 // Build a dual cell from a given vertex
 std::vector<point_t> Mesh::get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points) {
-    std::vector<std::pair<int, int>> adjacent_edges;
-    std::vector<int> adjacent_triangles;
 
     // Find adjacent edges and triangles
-    std::pair<std::vector<std::pair<int, int>>, std::vector<int>> adjacent_elements = find_adjacent_elements(point);
-
-    adjacent_edges = adjacent_elements.first;
-    adjacent_triangles = adjacent_elements.second;
+    auto [adjacent_edges, adjacent_triangles, neighboring_vertices] = find_adjacent_elements(point);
 
     // Store dual cell vertices
     std::vector<point_t> dual_points;

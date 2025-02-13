@@ -207,8 +207,11 @@ double calculate_polygon_area_vec(const std::vector<std::vector<double>> input_p
         area += (x1 * y2) - (x2 * y1);
     }
 
-    // Take the absolute value and divide by 2
-    area = 0.5 * (area);
+    if (area < 0.0) {
+		area = - 0.5 * (area);
+	} else {
+		area = 0.5 * (area);
+	}
 
     return area;
 }

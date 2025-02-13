@@ -5,18 +5,14 @@
 #include <string>
 
 #include "src/caustic_design.h"
+#include "src/mesh.h"
 
 #include <thread>
 
 #define cimg_use_png
 //#define cimg_use_jpeg
 
-#if defined(_WIN32) || defined(_WIN64)
-    #include "CImg.h"
-#else
-    #include<X11/Xlib.h>
-    #include "/home/dylan/caustic_engineering/CImg.h"
-#endif
+#include "CImg.h"
 
 void image_to_grid(const cimg_library::CImg<unsigned char>& image, std::vector<std::vector<double>>& image_grid) {
     for (int i = 0; i < image.height(); ++i) {
@@ -100,7 +96,7 @@ int main(int argc, char const *argv[])
     std::unordered_map<std::string, std::string> args = parse_arguments(argc, argv);
 
     // Load image
-    cimg_library::CImg<unsigned char> image(args["intput_png"].c_str());
+    cimg_library::CImg<unsigned char> image(args["input_png"].c_str());
     double aspect_ratio = (double)image.width() / (double)image.height();
 
     // Print parsed arguments
@@ -109,15 +105,14 @@ int main(int argc, char const *argv[])
         printf("Key: %s, Value: %s\r\n", pair.first.c_str(), pair.second.c_str());
     }*/
 
-    Caustic_design caustic_design;
-
     int mesh_resolution_x = atoi(args["res_w"].c_str());
     double mesh_width = std::stod(args["width"]);
+    double mesh_height = floor((mesh_resolution_x) / aspect_ratio) * (mesh_width / (mesh_resolution_x));
+
+    Caustic_design caustic_design(mesh_width, mesh_height, mesh_resolution_x, mesh_resolution_x / aspect_ratio);
 
     caustic_design.set_mesh_resolution(mesh_resolution_x, mesh_resolution_x / aspect_ratio);
     caustic_design.set_domain_resolution(4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio);
-
-    double mesh_height = floor((mesh_resolution_x) / aspect_ratio) * (mesh_width / (mesh_resolution_x));
 
     caustic_design.set_mesh_size(mesh_width, mesh_height);
 
@@ -141,8 +136,11 @@ int main(int argc, char const *argv[])
         
         double step_size = caustic_design.perform_transport_iteration();
 
+        //save_grid_as_image(scale_matrix_proportional(caustic_design.phi, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "../phi.png");
+
         //export_cells_as_svg(caustic_design.source_cells, scale_array_proportional(caustic_design.vertex_gradient[0], 0.0f, 1.0f), "../x_grad.svg");
 
+        //save_grid_as_image(scale_matrix_proportional(caustic_design.gradient[0], 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "../gradx.png");
         //save_grid_as_image(scale_matrix_proportional(caustic_design.gradient[0], 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "../grad_x_" + std::to_string(itr) + ".png");
         //save_grid_as_image(scale_matrix_proportional(caustic_design.gradient[1], 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "../grad_y_" + std::to_string(itr) + ".png");
         //save_grid_as_image(scale_matrix_proportional(caustic_design.raster, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "../raster_" + std::to_string(itr) + ".png");
@@ -153,7 +151,7 @@ int main(int argc, char const *argv[])
         printf("step_size = %f\r\n", step_size);
 
         // convergence treshold for the parameterization
-        if (step_size < 0.005) break;
+        if (step_size < 0.01) break;
     }
 
     printf("\033[0;32mTransport map solver done! Starting height solver.\033[0m\r\n");

@@ -22,15 +22,13 @@ struct HashPair {
         auto h1 = std::hash<T1>{}(p.first);
         auto h2 = std::hash<T2>{}(p.second);
 
-        // Using XOR (^) to combine hashes
-        return h1 ^ h2;
+        // Use bit shifting to combine the hashes for better distribution
+        return h1 ^ (h2 << 1); // Shift the second hash and combine it with the first
     }
 };
 
 class Mesh {
     private:
-        std::vector<std::vector<int>> triangles;
-
         std::unordered_map<int, std::vector<int>> vertex_to_triangles;
 
         // stores the BVH tree for the target mesh
@@ -39,7 +37,6 @@ class Mesh {
 
         void generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<point_t> &points);
         void build_vertex_to_triangles();
-        std::pair<std::vector<std::pair<int, int>>, std::vector<int>> find_adjacent_elements(int vertex_index);
 
         double find_min_delta_t(const std::vector<std::vector<double>>& velocities);
 
@@ -50,11 +47,24 @@ class Mesh {
         std::vector<point_t> source_points;
         std::vector<point_t> target_points;
 
+        std::vector<std::vector<int>> triangles;
+
         double width;
         double height;
 
         int res_x;
         int res_y;
+
+        std::vector<std::vector<std::pair<int, int>>> vertex_adjecent_edges;
+        std::vector<std::vector<int>> vertex_adjecent_triangles;
+        std::vector<std::vector<int>> vertex_adjecent_vertices;
+        std::vector<bool> vertex_is_boundary;
+
+        void build_adjacency_lookups();
+
+        bool is_boundary_vertex(int vertex_index, std::vector<std::pair<int, int>>& boundary_edges);
+
+        std::tuple<std::vector<std::pair<int, int>>, std::vector<int>, std::vector<int>> find_adjacent_elements(int vertex_index);
 
         void export_to_svg(std::string filename, double stroke_width);
         void export_paramererization_to_svg(std::string filename, double stroke_width);
