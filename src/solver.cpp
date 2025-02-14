@@ -135,15 +135,14 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
         // print progress to terminal
         if (i % 100 == 0) {
             printf("\33[2K\r");
-            printf("Solver max_update: %f, convergence at %.2e\r", log(1.0f / max_update), convergence_threshold);
-
-            calculate_progress(log(1.0f / max_update), log(1.0f / initial_max_update), log(1.0f / convergence_threshold));
+            printf("\tPoisson solver max_update: %.2e, convergence at %.2e\r", max_update, convergence_threshold);
         }
 
         // check for convergance
         if (max_update < convergence_threshold) {
-            break;
+            //printf("\33[2K\r");
             printf("\r\n");
+            break;
         }
     }
 }

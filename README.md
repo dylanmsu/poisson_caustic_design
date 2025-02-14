@@ -4,15 +4,22 @@
 
 This project implements and builds upon the method described in the paper [Poisson-Based Continuous Surface Generation for Goal-Based Caustics](http://nishitalab.org/user/egaku/tog14/continuous_caustics.pdf).
 
+## What does it do?
+With the code in this repository you can calculate the shape of a transparent window that casts an image if light passes through. 
+
+It does that by modulating the angle of the surface across the entire surface to steer the light in the desired directions.
+
+A more detailed explanation is that it first calculates from where on the lens surface to where on the screen the light should go. It then calculates the the shape of the lens such that it satisfies all these directions.
+
 Result simulated with Blender using LuxRender:
 ![Alt text](./doc/lena_sim.gif)
 
 ## Features
 
-- Implementation of the Poisson-based continuous surface generation algorithm.
+- Implementation of the Poisson-based continuous surface generation algorithm by Yue et al.
 - exports a solidified .obj
-- the only c++17 non-standard dependancy is libpng
-- can export the the inverse transport map
+- the only non-standard C++ dependancy is libpng
+- can export the the inverse transport map (can be used for for density sampling)
 - multithreaded poisson solver
 
 ## Installation
@@ -91,7 +98,7 @@ Result simulated with Blender using LuxRender:
 
 1. Parameters:
     - ```bash
-        --intput_png=[image path] # input image path
+        --input_png=[image path] # input image path
     - ```bash
         --res_w=[grid resolution] # mesh resolution in the x-axis
     - ```bash
@@ -101,11 +108,13 @@ Result simulated with Blender using LuxRender:
     - ```bash
         --thickness=[lens thickness] # thickness of the final caustic lens
     - ```bash
+        --conv_tres=[convergence treshold] # higher number = faster but lower contrast image
+    - ```bash
         --max_threads=[max number of threads] # sets the maximum cpu threads for the poisson solver
 2. Execute the program:
 
     ```bash
-    ./CausticEngineering.exe --intput_png=../img/siggraph.png --res_w=100 --width=0.5 --focal_l=1.5 --thickness=0.1 --max_threads=16
+    ./CausticEngineering.exe --input_png=../img/siggraph.png --res_w=100 --width=0.5 --focal_l=1.5 --thickness=0.1 --conv_tres=0.01 --max_threads=16
     ```
 
 ### Sample Output
