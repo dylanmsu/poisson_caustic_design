@@ -334,13 +334,13 @@ void Caustic_design::perform_height_map_iteration(int itr) {
 void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) {
     pixels = scale_matrix_proportional(image, 0, 1.0f);
 
-    printf("scaled\r\n");
+    //printf("scaled\r\n");
 
     mesh = new Mesh(width, height, mesh_res_x, mesh_res_y);
 
     printf("generated mesh\r\n");
 
-    mesh->export_to_svg("../mesh.svg", 1);
+    //mesh->export_to_svg("../mesh.svg", 1);
 
     //std::cout << "built mesh" << std::endl;
 
@@ -352,7 +352,7 @@ void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) 
     //std::vector<double> target_areas = get_target_areas(pixels, circ_target_cells, resolution_x, resolution_y, width, height);
     target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);
 
-    export_cells_as_svg(target_cells, scale_array_proportional(target_areas, 0.0f, 1.0f), "../cells.svg");
+    //export_cells_as_svg(target_cells, scale_array_proportional(target_areas, 0.0f, 1.0f), "../cells.svg");
 
     phi.clear();
     h.clear();

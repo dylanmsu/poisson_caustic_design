@@ -185,6 +185,8 @@ int main(int argc, char const *argv[]) {
         printf("Key: %s, Value: %s\r\n", pair.first.c_str(), pair.second.c_str());
     }*/
 
+    double convergence = std::stod(args["conv_tres"]);
+
     // Load image to grid
     std::vector<std::vector<double>> pixels;
     image_to_grid(args["input_png"], pixels);
@@ -227,9 +229,9 @@ int main(int argc, char const *argv[]) {
         caustic_design.export_paramererization_to_svg("../parameterization_" + std::to_string(itr + 1) + ".svg", 1.0f);
         caustic_design.export_inverted_transport_map("../inverted.svg", 1.0f);
 
-        printf("step_size = %f\r\n", step_size);
+        printf("\tTransport step size = %f, convergence at %f\r\n", step_size, convergence);
 
-        if (step_size < 0.01) break;
+        if (step_size < convergence) break;
     }
 
     printf("\033[0;32mTransport map solver done! Starting height solver.\033[0m\r\n");
