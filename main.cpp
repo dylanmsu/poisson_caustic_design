@@ -187,11 +187,16 @@ int main(int argc, char const *argv[]) {
 
     // Load image to grid
     std::vector<std::vector<double>> pixels;
+    std::vector<std::vector<double>> pixels_trg;
     image_to_grid(args["input_png"], pixels);
+    image_to_grid(args["trg_png"], pixels_trg);
     double aspect_ratio = (double)pixels[0].size() / (double)pixels.size();
 
     std::vector<std::vector<double>> resized_pixels;
     resize_image(pixels, resized_pixels, 4 * atoi(args["res_w"].c_str()), 4 * atoi(args["res_w"].c_str()) / aspect_ratio);
+
+    std::vector<std::vector<double>> resized_pixels_trg;
+    resize_image(pixels_trg, resized_pixels_trg, 4 * atoi(args["res_w"].c_str()), 4 * atoi(args["res_w"].c_str()) / aspect_ratio);
 
     Caustic_design caustic_design;
 
@@ -209,7 +214,7 @@ int main(int argc, char const *argv[]) {
     caustic_design.set_lens_thickness(std::stod(args["thickness"]));
     caustic_design.set_solver_max_threads(atoi(args["max_threads"].c_str()));
 
-    caustic_design.initialize_solvers(resized_pixels);
+    caustic_design.initialize_solvers(resized_pixels, resized_pixels_trg);
 
     caustic_design.export_paramererization_to_svg("../parameterization_0.svg", 0.5f);
 
@@ -229,7 +234,7 @@ int main(int argc, char const *argv[]) {
 
         printf("step_size = %f\r\n", step_size);
 
-        if (step_size < 0.01) break;
+        if (step_size < 0.001) break;
     }
 
     printf("\033[0;32mTransport map solver done! Starting height solver.\033[0m\r\n");

@@ -10,6 +10,7 @@
 
 #include "polygon_utils.h"
 
+void normalize_image(std::vector<std::vector<double>>& raster);
 void subtractAverage(std::vector<std::vector<double>>& raster);
 std::vector<std::vector<double>> scale_matrix_proportional(const std::vector<std::vector<double>>& matrix, double min_value, double max_value);
 std::vector<double> scale_array_proportional(const std::vector<double>& arr, double min_value, double max_value);

@@ -199,6 +199,41 @@ double Caustic_design::perform_transport_iteration() {
     std::vector<double> source_areas = get_source_areas(target_cells);
     calculate_errors(source_areas, target_areas, target_cells, errors);
 
+    //normalize_image(pixels_trg);
+    //subtractAverage(pixels_trg);
+    std::vector<double> target_mass = integrate_grid_into_cells(pixels_trg, target_cells, resolution_x, resolution_y, width, height);
+
+    double sum_target_mass = 0.0f;
+    for (int i = 0; i < target_mass.size(); i++)
+    {
+        sum_target_mass += abs(target_mass[i]);
+    }
+
+    std::cout << "sum trg: " << sum_target_mass << std::endl;
+
+    double sum_errors = 0.0f;
+    for (int i = 0; i < errors.size(); i++)
+    {
+        sum_errors += errors[i];
+    }
+
+    double sum_target_area = 0.0f;
+	for (int i=0; i<target_areas.size(); i++) {
+		sum_target_area += abs(target_areas[i]);
+	}
+
+    std::cout << "sum trg2: " << sum_target_area << std::endl;
+
+    
+
+    for (int i = 0; i < errors.size(); i++)
+    {
+        errors[i] -= target_mass[i]*1.2;
+    }
+    
+    
+    export_cells_as_svg(target_cells, scale_array_proportional(errors, 0.0f, 1.0f), "../errors.svg");
+
     // rasterize the mesh into a uniform rectangular matrix
     bool triangle_miss = false;
     raster = mesh->interpolate_raster_target(errors, resolution_x, resolution_y, triangle_miss);
@@ -331,8 +366,20 @@ void Caustic_design::perform_height_map_iteration(int itr) {
     printf("height max update %.5e\r\n", max_update);
 }
 
-void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) {
+void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image, std::vector<std::vector<double>> image_trg) {
     pixels = scale_matrix_proportional(image, 0, 1.0f);
+    pixels_trg = scale_matrix_proportional(image_trg, 0, 1.0f);
+
+    double sum_trg = 0.0f;
+    double sum_src = 0.0f;
+    for (int i = 0; i < resolution_y; ++i) {
+        for (int j = 0; j < resolution_x; ++j) {
+            sum_src += pixels[i][j];
+            sum_trg += pixels_trg[i][j];
+        }
+    }
+
+    std::cout << "sum_src = " << sum_src << ", sum_trg = " << sum_trg << std::endl;
 
     printf("scaled\r\n");
 
@@ -352,7 +399,7 @@ void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) 
     //std::vector<double> target_areas = get_target_areas(pixels, circ_target_cells, resolution_x, resolution_y, width, height);
     target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);
 
-    export_cells_as_svg(target_cells, scale_array_proportional(target_areas, 0.0f, 1.0f), "../cells.svg");
+    export_cells_as_svg(target_cells, target_areas, "../cells.svg");
 
     phi.clear();
     h.clear();

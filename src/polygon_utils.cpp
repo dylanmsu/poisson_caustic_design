@@ -355,7 +355,7 @@ std::vector<double> get_target_areas(std::vector<std::vector<double>> &image, st
 	double scaling_factor = (width * height) / sum_target_area;
 
 	for (int i=0; i<input_polygons.size(); i++) {
-		target_areas[i] *= scaling_factor + 0.00001;
+		target_areas[i] *= scaling_factor;
 	}
 
 	return target_areas;

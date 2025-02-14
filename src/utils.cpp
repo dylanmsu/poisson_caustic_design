@@ -47,6 +47,30 @@ void subtractAverage(std::vector<std::vector<double>>& raster) {
     }
 }
 
+void normalize_image(std::vector<std::vector<double>>& raster) {
+    // Calculate the average of the raster
+    double sum = 0.0;
+
+    for (const auto& row : raster) {
+        for (double value : row) {
+            if (!std::isnan(value)) {
+                sum += value;
+            }
+        }
+    }
+
+    // Subtract the average from each element of the raster
+    for (auto& row : raster) {
+        std::transform(row.begin(), row.end(), row.begin(), [sum](double value) {
+            if (std::isnan(value)) {
+                return value;
+            } else {
+                return value / sum;
+            }
+        });
+    }
+}
+
 std::vector<std::vector<double>> scale_matrix_proportional(const std::vector<std::vector<double>>& matrix, double min_value, double max_value) {
     size_t rows = matrix.size();
 

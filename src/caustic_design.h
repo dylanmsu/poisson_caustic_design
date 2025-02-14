@@ -20,6 +20,7 @@ public:
     std::vector<std::vector<std::vector<double>>> source_cells;
     std::vector<double> target_areas;
     std::vector<std::vector<double>> pixels;
+    std::vector<std::vector<double>> pixels_trg;
     std::vector<std::vector<double>> raster;
     std::vector<std::vector<std::vector<double>>> gradient;
     std::vector<std::vector<double>> h;
@@ -48,7 +49,7 @@ public:
 
     void perform_height_map_iteration(int itr);
 
-    void initialize_solvers(std::vector<std::vector<double>> image);
+    void initialize_solvers(std::vector<std::vector<double>> image, std::vector<std::vector<double>> image_trg);
 
     void set_mesh_resolution(int width, int heigth);
     void set_domain_resolution(int width, int heigth);
