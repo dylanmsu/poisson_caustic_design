@@ -6,6 +6,7 @@
 #include <png.h>
 
 #include "src/caustic_design.h"
+#include "args/args.hxx"
 
 #include <thread>
 
@@ -133,51 +134,82 @@ void save_heightmap_as_json(const std::vector<std::vector<double>>& heightmap, c
     outfile.close();
 }
 
-std::unordered_map<std::string, std::string> parse_arguments(int argc, char const *argv[]) {
-    // Define a map to store the parsed arguments
-    std::unordered_map<std::string, std::string> args;
-
-    // Iterate through command line arguments
-    for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
-        std::string key, value;
-
-        // Check if argument starts with '--'
-        if (arg.substr(0, 2) == "--") {
-            // Split argument by '=' to separate key and value
-            size_t pos = arg.find('=');
-            if (pos != std::string::npos) {
-                key = arg.substr(2, pos - 2);
-                value = arg.substr(pos + 1);
-            }
-            else {
-                key = arg.substr(2);
-                value = ""; // No value provided
-            }
-        }
-        // Check if argument starts with '-'
-        else if (arg[0] == '-') {
-            // The next argument is the value
-            if (i + 1 < argc && argv[i + 1][0] != '-') {
-                key = arg.substr(1);
-                value = argv[++i];
-            }
-            else {
-                key = arg.substr(1);
-                value = ""; // No value provided
-            }
-        }
-
-        // Store key-value pair in the map
-        args[key] = value;
-    }
-
-    return args;
-}
-
 int main(int argc, char const *argv[]) {
     // Parse user arguments
-    std::unordered_map<std::string, std::string> args = parse_arguments(argc, argv);
+    args::ArgumentParser parser("", "");
+    args::HelpFlag help(parser, "help", "Display this help menu", {'h', "help"});
+
+    args::ValueFlag<std::string>    input_png(parser, "image", "Image input", {"input_png"});
+    args::ValueFlag<std::string>    progress_output(parser, "progress", "Transport progress output in SVG", {"progress_out"});
+    args::ValueFlag<std::string>    obj_output(parser, "output", "3D OBJ file output", {"output"});
+
+    args::ValueFlag<int>            res_w(parser, "resolution", "Mesh resolution", {"res_w"});
+    args::ValueFlag<float>          mesh_width(parser, "width", "Lens width", {"mesh_width"});
+    args::ValueFlag<float>          focal_l(parser, "focal_length", "Focal length", {"focal_l"});
+    args::ValueFlag<float>          thickness(parser, "thickness", "Lens Thickness", {"thickness"});
+    args::ValueFlag<int>            max_threads(parser, "max_threads", "Number of CPU threads to use", {"threads"});
+    args::ValueFlag<float>          conv_tres(parser, "convergence", "Contrast convergence treshold", {"conv_tres"});
+    
+    try
+    {
+        parser.ParseCLI(argc, argv);
+    }
+    catch (const args::Completion& e)
+    {
+        std::cout << e.what();
+        return 0;
+    }
+    catch (const args::Help&)
+    {
+        std::cout << parser;
+        return 0;
+    }
+    catch (const args::ParseError& e)
+    {
+        std::cerr << e.what() << std::endl;
+        std::cerr << parser;
+        return 1;
+    }
+
+    // default values
+    std::string image_filename = "";
+    std::string progress_path = "./";
+    std::string output_path = "./";
+    int mesh_resolution = 100;
+    double lens_width = 1.0;
+    double lens_focal_l = 1.5;
+    double lens_thickness = 0.2;
+    int max_cpu_threads = 1;
+    double convergence = 0.01;
+
+    if (input_png) { 
+        image_filename = args::get(input_png);
+    }
+    if (progress_output) {
+        progress_path = args::get(progress_output);
+    }
+    if (obj_output) {
+        output_path = args::get(obj_output);
+    }
+    if (res_w) { 
+        mesh_resolution = args::get(res_w);
+    }
+    if (mesh_width) {
+        lens_width = args::get(mesh_width);
+    }
+    if (focal_l) {
+        lens_focal_l = args::get(focal_l);
+    }
+    if (thickness) { 
+        lens_thickness = args::get(thickness);
+    }
+    if (max_threads) {
+        max_cpu_threads = args::get(max_threads);
+    }
+    if (conv_tres) {
+        convergence = args::get(conv_tres);
+    }
+ 
 
     // Print parsed arguments
     /*for (const auto& pair : args) {
@@ -185,31 +217,26 @@ int main(int argc, char const *argv[]) {
         printf("Key: %s, Value: %s\r\n", pair.first.c_str(), pair.second.c_str());
     }*/
 
-    double convergence = std::stod(args["conv_tres"]);
-
     // Load image to grid
     std::vector<std::vector<double>> pixels;
-    image_to_grid(args["input_png"], pixels);
+    image_to_grid(image_filename, pixels);
     double aspect_ratio = (double)pixels[0].size() / (double)pixels.size();
 
     std::vector<std::vector<double>> resized_pixels;
-    resize_image(pixels, resized_pixels, 4 * atoi(args["res_w"].c_str()), 4 * atoi(args["res_w"].c_str()) / aspect_ratio);
+    resize_image(pixels, resized_pixels, 4 * mesh_resolution, 4 * mesh_resolution / aspect_ratio);
 
     Caustic_design caustic_design;
 
-    int mesh_resolution_x = atoi(args["res_w"].c_str());
-    double mesh_width = std::stod(args["width"]);
+    caustic_design.set_mesh_resolution(mesh_resolution, mesh_resolution / aspect_ratio);
+    caustic_design.set_domain_resolution(4 * mesh_resolution, 4 * mesh_resolution / aspect_ratio);
 
-    caustic_design.set_mesh_resolution(mesh_resolution_x, mesh_resolution_x / aspect_ratio);
-    caustic_design.set_domain_resolution(4 * mesh_resolution_x, 4 * mesh_resolution_x / aspect_ratio);
+    double mesh_height = floor((mesh_resolution) / aspect_ratio) * (lens_width / (mesh_resolution));
 
-    double mesh_height = floor((mesh_resolution_x) / aspect_ratio) * (mesh_width / (mesh_resolution_x));
+    caustic_design.set_mesh_size(lens_width, mesh_height);
 
-    caustic_design.set_mesh_size(mesh_width, mesh_height);
-
-    caustic_design.set_lens_focal_length(std::stod(args["focal_l"]));
-    caustic_design.set_lens_thickness(std::stod(args["thickness"]));
-    caustic_design.set_solver_max_threads(atoi(args["max_threads"].c_str()));
+    caustic_design.set_lens_focal_length(lens_focal_l);
+    caustic_design.set_lens_thickness(lens_thickness);
+    caustic_design.set_solver_max_threads(max_cpu_threads);
 
     caustic_design.initialize_solvers(resized_pixels);
 
@@ -222,9 +249,9 @@ int main(int argc, char const *argv[]) {
 
         //export_cells_as_svg(caustic_design.source_cells, scale_array_proportional(caustic_design.vertex_gradient[0], 0.0f, 1.0f), "../x_grad.svg");
 
-        //save_grid_as_image(scale_matrix_proportional(caustic_design.gradient[0], 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "../grad_x_" + std::to_string(itr) + ".png");
-        //save_grid_as_image(scale_matrix_proportional(caustic_design.gradient[1], 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "../grad_y_" + std::to_string(itr) + ".png");
-        //save_grid_as_image(scale_matrix_proportional(caustic_design.raster, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "../raster_" 
+        //save_grid_as_image(scale_matrix_proportional(caustic_design.gradient[0], 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../grad_x_" + std::to_string(itr) + ".png");
+        //save_grid_as_image(scale_matrix_proportional(caustic_design.gradient[1], 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../grad_y_" + std::to_string(itr) + ".png");
+        //save_grid_as_image(scale_matrix_proportional(caustic_design.raster, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../raster_" 
 
         caustic_design.export_paramererization_to_svg("../parameterization_" + std::to_string(itr + 1) + ".svg", 1.0f);
         caustic_design.export_inverted_transport_map("../inverted.svg", 1.0f);
@@ -238,17 +265,17 @@ int main(int argc, char const *argv[]) {
 
     for (int itr = 0; itr < 3; itr++) {
         caustic_design.perform_height_map_iteration(itr);
-        //save_grid_as_image(scale_matrix_proportional(caustic_design.h, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "../h" + std::to_string(itr) + ".png");
-        //save_grid_as_image(scale_matrix_proportional(caustic_design.divergence, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "../div" + std::to_string(itr) + ".png");
-        //save_grid_as_image(scale_matrix_proportional(caustic_design.norm_x, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "norm_x" + std::to_string(itr) + ".png");
-        //save_grid_as_image(scale_matrix_proportional(caustic_design.norm_y, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "norm_y" + std
+        //save_grid_as_image(scale_matrix_proportional(caustic_design.h, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../h" + std::to_string(itr) + ".png");
+        //save_grid_as_image(scale_matrix_proportional(caustic_design.divergence, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../div" + std::to_string(itr) + ".png");
+        //save_grid_as_image(scale_matrix_proportional(caustic_design.norm_x, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "norm_x" + std::to_string(itr) + ".png");
+        //save_grid_as_image(scale_matrix_proportional(caustic_design.norm_y, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "norm_y" + std
     }
 
     /*std::vector<std::vector<double>> normals;
     std::vector<std::vector<double>> normals_trg;
     for (int i=0; i<caustic_design.mesh->source_points.size(); i++) {
         std::vector<double> normal = caustic_design.calculate_vertex_normal(caustic_design.mesh->source_points, i);
-        normal[2] *= (mesh_resolution_x * 4) / mesh_width;
+        normal[2] *= (mesh_resolution * 4) / mesh_width;
         normal = normalize(normal);
 
         normals_trg.push_back(normalize({
@@ -268,10 +295,10 @@ int main(int argc, char const *argv[]) {
     }
 
     /*bool miss = false;
-    std::vector<std::vector<double>> norm_x = caustic_design.mesh->interpolate_raster_source(x_normals, 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, miss);
-    std::vector<std::vector<double>> norm_y = caustic_design.mesh->interpolate_raster_source(y_normals, 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, miss);
-    save_grid_as_image(scale_matrix_proportional(norm_x, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "../x_normals.png");
-    save_grid_as_image(scale_matrix_proportional(norm_y, 0.0f, 1.0f), 4*mesh_resolution_x, 4*mesh_resolution_x / aspect_ratio, "../y_normals.png");
+    std::vector<std::vector<double>> norm_x = caustic_design.mesh->interpolate_raster_source(x_normals, 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, miss);
+    std::vector<std::vector<double>> norm_y = caustic_design.mesh->interpolate_raster_source(y_normals, 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, miss);
+    save_grid_as_image(scale_matrix_proportional(norm_x, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../x_normals.png");
+    save_grid_as_image(scale_matrix_proportional(norm_y, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../y_normals.png");
     //*/
 
     //export_cells_as_svg(caustic_design.source_cells, scale_array_proportional(E_int, 0.0f, 1.0f), "../integration_energy.svg");
