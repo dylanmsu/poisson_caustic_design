@@ -240,7 +240,7 @@ int main(int argc, char const *argv[]) {
 
     caustic_design.initialize_solvers(resized_pixels);
 
-    caustic_design.export_paramererization_to_svg("../parameterization_0.svg", 0.5f);
+    caustic_design.export_paramererization_to_svg(progress_path + "parameterization_0.svg", 0.5f);
 
     for (int itr = 0; itr < 30; itr++) {
         printf("starting iteration %i\r\n", itr);
@@ -253,8 +253,8 @@ int main(int argc, char const *argv[]) {
         //save_grid_as_image(scale_matrix_proportional(caustic_design.gradient[1], 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../grad_y_" + std::to_string(itr) + ".png");
         //save_grid_as_image(scale_matrix_proportional(caustic_design.raster, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../raster_" 
 
-        caustic_design.export_paramererization_to_svg("../parameterization_" + std::to_string(itr + 1) + ".svg", 1.0f);
-        caustic_design.export_inverted_transport_map("../inverted.svg", 1.0f);
+        caustic_design.export_paramererization_to_svg(progress_path + "parameterization_" + std::to_string(itr + 1) + ".svg", 1.0f);
+        caustic_design.export_inverted_transport_map(progress_path + "inverted.svg", 1.0f);
 
         printf("\tTransport step size = %f, convergence at %f\r\n", step_size, convergence);
 
@@ -308,10 +308,10 @@ int main(int argc, char const *argv[]) {
 
     printf("Height solver done! Exporting as solidified obj\r\n");
 
-    caustic_design.save_solid_obj_source("../output.obj");
+    caustic_design.save_solid_obj_source(output_path + "output.obj");
 
     // Save the heightmap to JSON
-    save_heightmap_as_json(caustic_design.h, "../heightmap.json");
+    save_heightmap_as_json(caustic_design.h, output_path + "heightmap.json");
 
     return 0;
 }
