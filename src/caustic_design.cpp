@@ -189,15 +189,24 @@ double bilinearInterpolation(const std::vector<std::vector<double>>& image, doub
 
 double Caustic_design::perform_transport_iteration() {
     //std::vector<std::vector<double>> vertex_gradient;
-    double min_step;
+    double min_step = 0.0f;
 
     // build median dual mesh of the updated parameterization
     target_cells.clear();
-    mesh->build_target_dual_cells(target_cells);
+    mesh->build_target_partitioned_dual_cells(target_cells);
+    std::vector<double> source_areas = get_partitioned_source_areas(target_cells);
 
-    // calculate difference D (interpretation of equation 2)
-    std::vector<double> source_areas = get_source_areas(target_cells);
-    calculate_errors(source_areas, target_areas, target_cells, errors);
+    errors.clear();
+    
+    // calculate difference D (equation 2 in the paper)
+    for (int i=0; i<target_areas.size(); i++) {
+        errors.push_back(target_areas[i] - source_areas[i]);
+    }
+
+    // scale errors by the inverse cell area. Keeps error magnitude consistent
+    for (int i=0; i<target_areas.size(); i++) {
+        errors[i] = errors[i] / calculate_partitioned_cell_area(target_cells[i]);
+    }
 
     // rasterize the mesh into a uniform rectangular matrix
     bool triangle_miss = false;
@@ -215,12 +224,7 @@ double Caustic_design::perform_transport_iteration() {
     // calculate the gradient given by equation 4
     gradient = calculate_gradient(phi);
 
-    // calculate the gradient vectors corresponding to each vertex in the mesh
-
-    // bilinear interpolating the gradients (negligibly faster, but gives lower contrast results)
-    double epsilon = 1e-8;
-    
-
+    // bilinear interpolating the gradients
     std::vector<double> vertex_gradient_x;
     std::vector<double> vertex_gradient_y;
     for (int i=0; i<mesh->target_points.size(); i++) {
@@ -239,22 +243,13 @@ double Caustic_design::perform_transport_iteration() {
     vertex_gradient.push_back(vertex_gradient_x);
     vertex_gradient.push_back(vertex_gradient_y);
     
-    //*/
-
-    // integrate the gradient grid into the dual cells of the vertices (slower but better contrast)
-    //vertex_gradient = integrate_cell_gradients(gradient, target_cells, resolution_x, resolution_y, width, height);
-
     std::vector<std::vector<double>> old_points;
-
     std::copy(mesh->target_points.begin(), mesh->target_points.end(), back_inserter(old_points));
 
     // step the mesh vertices in the direction of their gradient vector
     mesh->step_grid(vertex_gradient[0], vertex_gradient[1], 0.05f);
 
-    //mesh->laplacian_smoothing(mesh->target_points, 0.5f);
-
-    min_step = 0.0f;
-
+    // calculate the mesh movement size for convergence status
     for (int i=0; i<old_points.size(); i++) {
         double dx = (old_points[i][0] - mesh->target_points[i][0]);
         double dy = (old_points[i][1] - mesh->target_points[i][1]);
@@ -267,26 +262,8 @@ double Caustic_design::perform_transport_iteration() {
         }
     }
 
-    //mesh->laplacian_smoothing(mesh->target_points, min_step / width);
-
     return min_step / width;
-
-    //return min_step*(resolution_x/width);
 }
-
-// normalize a vector such that its length equals 1
-/*void normalize(std::vector<double> &vec) {
-    double squared_len = 0;
-    for (int i=0; i<vec.size(); i++) {
-        squared_len += vec[i] * vec[i];
-    }
-
-    double len = std::sqrt(squared_len);
-
-    for (int i=0; i<vec.size(); i++) {
-        vec[i] /= len;
-    }
-}*/
 
 // uses uniform grid as caustic surface
 void Caustic_design::perform_height_map_iteration(int itr) {
@@ -350,7 +327,7 @@ void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) 
     //mesh.build_circular_target_dual_cells(circ_target_cells);
 
     //std::vector<double> target_areas = get_target_areas(pixels, circ_target_cells, resolution_x, resolution_y, width, height);
-    target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);
+    target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);    
 
     //export_cells_as_svg(target_cells, scale_array_proportional(target_areas, 0.0f, 1.0f), "../cells.svg");
 

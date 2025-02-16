@@ -15,6 +15,7 @@
 #include "utils.h"
 
 typedef std::vector<double> point_t;
+typedef std::vector<point_t> polygon_t;
 
 struct HashPair {
     template <class T1, class T2>
@@ -56,13 +57,20 @@ class Mesh {
         int res_x;
         int res_y;
 
+        int find_shared_triangle(int v, const std::pair<int, int>& e1, const std::pair<int, int>& e2);
+
         void export_to_svg(std::string filename, double stroke_width);
         void export_paramererization_to_svg(std::string filename, double stroke_width);
 
-        std::vector<std::vector<double>> get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points);
+        polygon_t get_triangle_quad(int vertex_idx, int triangle_idx, std::vector<point_t>& points);
+        polygon_t get_barycentric_dual_cell(int point, std::vector<point_t> &points);
+        std::vector<polygon_t> get_partitioned_barycentric_dual_cell(int v_point, std::vector<point_t>& points);
         
-        void build_target_dual_cells(std::vector<std::vector<point_t>> &cells);
-        void build_source_dual_cells(std::vector<std::vector<point_t>> &cells);
+        void build_target_dual_cells(std::vector<polygon_t> &cells);
+        void build_source_dual_cells(std::vector<polygon_t> &cells);
+
+        void build_target_partitioned_dual_cells(std::vector<std::vector<polygon_t>> &cells);
+        void build_source_partitioned_dual_cells(std::vector<std::vector<polygon_t>> &cells);
 
         std::vector<std::vector<double>> interpolate_raster_target(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss);
         std::vector<std::vector<double>> interpolate_raster_source(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss);
@@ -81,16 +89,16 @@ class Mesh {
         void save_solid_obj_target(double thickness, const std::string& filename);
         void save_solid_obj_source(double thickness, const std::string& filename);
         
-        std::vector<std::vector<double>> calculate_inverted_transport_map();
+        std::vector<point_t> calculate_inverted_transport_map();
         void calculate_and_export_inverted_transport_map(std::string filename, double stroke_width);
 
-        void build_target_dual_cells_circ(std::vector<std::vector<point_t>> &cells);
+        void build_target_dual_cells_circ(std::vector<polygon_t> &cells);
 
-        std::vector<point_t> circular_transform(std::vector<std::vector<double>> &input_points);
+        std::vector<point_t> circular_transform(std::vector<point_t> &input_points);
 
-        void build_circular_target_dual_cells(std::vector<std::vector<point_t>> &cells);
+        void build_circular_target_dual_cells(std::vector<polygon_t> &cells);
 
-        void laplacian_smoothing(std::vector<std::vector<double>> &points, double smoothing_factor);
+        void laplacian_smoothing(std::vector<point_t> &points, double smoothing_factor);
 
         void get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_vertex, int &top_vertex, int &bottom_vertex);
 };

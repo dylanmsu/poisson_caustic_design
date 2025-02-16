@@ -127,7 +127,7 @@ void export_cells_as_svg(std::vector<std::vector<std::vector<double>>> cells, st
                 path_str += "L";
         }
         path_str += "Z";
-        svg_file << "<path d=\"" << path_str << "\" fill=\"" << "rgb(" << intensities[i]*255 << ", " << intensities[i]*255 << ", " << intensities[i]*255 << ")\" stroke=\"none\" stroke-width=\"" << 1.0 << "\"/>\n";
+        svg_file << "<path d=\"" << path_str << "\" fill=\"" << "rgb(" << intensities[i]*255 << ", " << intensities[i]*255 << ", " << intensities[i]*255 << ")\" stroke=\"black\" stroke-width=\"" << 1.0 << "\"/>\n";
     }
 
     // Write SVG footer
@@ -186,44 +186,6 @@ std::vector<std::vector<double>> calculate_divergence(const std::vector<std::vec
     return divergence;
 }//*/
 
-/*std::vector<std::vector<double>> calculate_divergence(const std::vector<std::vector<double>>& Nx, const std::vector<std::vector<double>>& Ny, int nx, int ny) {
-    int height = ny;
-    int width = nx;
-
-    std::vector<std::vector<double>> divergence(height, std::vector<double>(width, 0.0));
-
-    // Iterate over each point in the grid
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            // Calculate divergence at each point using gradient components Nx and Ny
-            double div_x = (x < width - 1) ? Nx[y][x + 1] - Nx[y][x] : 0.0;
-            double div_y = (y < height - 1) ? Ny[y + 1][x] - Ny[y][x] : 0.0;
-            
-            // Calculate the total divergence
-            divergence[y][x] = div_x + div_y;
-        }
-    }
-
-    return divergence;
-}//*/
-
-void calculate_errors(std::vector<double> &source_areas, std::vector<double> &target_areas, std::vector<std::vector<std::vector<double>>> cells, std::vector<double> &errors) {
-    errors.clear();
-    for (int i=0; i<target_areas.size(); i++) {
-        errors.push_back(target_areas[i] - source_areas[i]);
-    }
-
-    double error_sum = 0;
-    for (int i=0; i<target_areas.size(); i++) {
-        errors[i] = errors[i] / calculate_polygon_area_vec(cells[i]);
-        error_sum += errors[i];
-    }
-    double average = error_sum / target_areas.size();
-
-    for (int i=0; i<target_areas.size(); i++) {
-        errors[i] -= average;
-    }
-}
 
 void find_perimeter_vertices(int nx, int ny, std::vector<int> &perimeter_vertices) {
     // Top row

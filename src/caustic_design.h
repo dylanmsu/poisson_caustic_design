@@ -16,8 +16,8 @@ public:
     Mesh *mesh;
     std::vector<std::vector<double>> phi;
     std::vector<double> errors;
-    std::vector<std::vector<std::vector<double>>> target_cells;
-    std::vector<std::vector<std::vector<double>>> source_cells;
+    std::vector<std::vector<polygon_t>> target_cells;
+    std::vector<polygon_t> source_cells;
     std::vector<double> target_areas;
     std::vector<std::vector<double>> pixels;
     std::vector<std::vector<double>> raster;
@@ -42,7 +42,7 @@ public:
     double thickness;
     int nthreads;
 
-    std::vector<double> calculate_vertex_normal(std::vector<std::vector<double>> &points, int vertex_index);
+    std::vector<double> calculate_vertex_normal(std::vector<point_t> &points, int vertex_index);
 
     double perform_transport_iteration();
 

@@ -182,11 +182,14 @@ int main(int argc, char const *argv[]) {
     int max_cpu_threads = 1;
     double convergence = 0.01;
 
+    bool output_progress = false;
+
     if (input_png) { 
         image_filename = args::get(input_png);
     }
     if (progress_output) {
         progress_path = args::get(progress_output);
+        output_progress = true;
     }
     if (obj_output) {
         output_path = args::get(obj_output);
@@ -240,22 +243,24 @@ int main(int argc, char const *argv[]) {
 
     caustic_design.initialize_solvers(resized_pixels);
 
-    caustic_design.export_paramererization_to_svg(progress_path + "parameterization_0.svg", 0.5f);
-
-    for (int itr = 0; itr < 30; itr++) {
+    if (output_progress) {
+        caustic_design.export_paramererization_to_svg(progress_path + "parameterization_0.svg", 0.5f);
+    }
+    
+    for (int itr = 0; itr < 50; itr++) {
         printf("starting iteration %i\r\n", itr);
 
         double step_size = caustic_design.perform_transport_iteration();
-
-        //export_cells_as_svg(caustic_design.source_cells, scale_array_proportional(caustic_design.vertex_gradient[0], 0.0f, 1.0f), "../x_grad.svg");
 
         //save_grid_as_image(scale_matrix_proportional(caustic_design.gradient[0], 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../grad_x_" + std::to_string(itr) + ".png");
         //save_grid_as_image(scale_matrix_proportional(caustic_design.gradient[1], 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../grad_y_" + std::to_string(itr) + ".png");
         //save_grid_as_image(scale_matrix_proportional(caustic_design.raster, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../raster_" 
 
-        caustic_design.export_paramererization_to_svg(progress_path + "parameterization_" + std::to_string(itr + 1) + ".svg", 1.0f);
-        caustic_design.export_inverted_transport_map(progress_path + "inverted.svg", 1.0f);
-
+        if (output_progress) {
+            caustic_design.export_paramererization_to_svg(progress_path + "parameterization_" + std::to_string(itr + 1) + ".svg", 1.0f);
+            caustic_design.export_inverted_transport_map(progress_path + "inverted.svg", 1.0f);
+        }
+        
         printf("\tTransport step size = %f, convergence at %f\r\n", step_size, convergence);
 
         if (step_size < convergence) break;

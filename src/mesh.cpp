@@ -151,8 +151,87 @@ double calculateAngle(const point_t& a, const point_t& reference) {
     return std::atan2(a[1] - reference[1], a[0] - reference[0]);
 }
 
+point_t edge_centroid(point_t &point_i, point_t &point_j) {
+    point_t centroid(3);
+    for (int i = 0; i < 3; i++)
+    {
+        centroid[i] = (point_i[i] + point_j[i]) / 2.0f;
+    }
+
+    return centroid;
+}
+
+point_t triangle_centroid(point_t &point_i, point_t &point_j, point_t &point_k) {
+    std::vector<double> centroid(3);
+    for (int i = 0; i < 3; i++)
+    {
+        centroid[i] = (point_i[i] + point_j[i] + point_k[i]) / 3.0f;
+    }
+
+    return centroid;
+}
+
+polygon_t Mesh::get_triangle_quad(int vertex_idx_i, int triangle_idx, std::vector<point_t>& points) {
+    std::vector<int> triangle = this->triangles[triangle_idx];
+    int vertex_idx_j = -1;
+    int vertex_idx_k = -1;
+
+    for (int i = 0; i < 3; i++) {
+        if (triangle[i] == vertex_idx_i) {
+            vertex_idx_j = triangle[(i + 1) % 3];
+            vertex_idx_k = triangle[(i + 2) % 3];
+            break;
+        }
+    }
+
+    point_t vertex_i = points[vertex_idx_i];
+    point_t vertex_j = points[vertex_idx_j];
+    point_t vertex_k = points[vertex_idx_k];
+
+    polygon_t quad;
+
+    quad.push_back(vertex_i);
+    quad.push_back(edge_centroid(vertex_i, vertex_j));
+    quad.push_back(triangle_centroid(vertex_i, vertex_j, vertex_k));
+    quad.push_back(edge_centroid(vertex_i, vertex_k));
+
+    return quad;
+}
+
+std::vector<polygon_t> Mesh::get_partitioned_barycentric_dual_cell(int v_point, std::vector<std::vector<double>>& points) {
+    std::vector<polygon_t> cell;
+
+    auto adjacent_elements = find_adjacent_elements(v_point);
+    std::vector<int>& adjacent_triangles = adjacent_elements.second;
+
+    for (int i = 0; i < adjacent_triangles.size(); i++)
+    {
+        int adjacent_triangle_idx = adjacent_triangles[i];
+
+        cell.push_back(get_triangle_quad(v_point, adjacent_triangle_idx, points));
+    }
+    
+    return cell;
+}
+
+// build barycentric dual mesh for the source mesh
+void Mesh::build_source_partitioned_dual_cells(std::vector<std::vector<polygon_t>> &cells) {
+    for (int i=0; i<this->source_points.size(); i++) {
+        std::vector<polygon_t> cell = get_partitioned_barycentric_dual_cell(i, this->source_points);
+        cells.push_back(cell);
+    }
+}
+
+// build barycentric dual mesh for the target mesh
+void Mesh::build_target_partitioned_dual_cells(std::vector<std::vector<polygon_t>> &cells) {
+    for (int i=0; i<this->target_points.size(); i++) {
+        std::vector<polygon_t> cell = get_partitioned_barycentric_dual_cell(i, this->target_points);
+        cells.push_back(cell);
+    }
+}
+
 // Build a dual cell from a given vertex
-std::vector<point_t> Mesh::get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points) {
+std::vector<point_t> Mesh::get_barycentric_dual_cell(int point, std::vector<point_t> &points) {
     std::vector<std::pair<int, int>> adjacent_edges;
     std::vector<int> adjacent_triangles;
 
@@ -390,15 +469,15 @@ std::vector<std::vector<double>> Mesh::interpolate_raster_source(const std::vect
 }
 
 // exports the inverted transport map as svg (mesh where its density distrbution is dependent on the image intensity)
-std::vector<std::vector<double>> Mesh::calculate_inverted_transport_map() {
+std::vector<point_t> Mesh::calculate_inverted_transport_map() {
     build_target_bvh(5, 30);
 
     double epsilon = 1e-8;//std::numeric_limits<float>::epsilon();
 
-    std::vector<std::vector<double>> inverted_points;
+    std::vector<point_t> inverted_points;
     for (int i=0; i<this->source_points.size(); ++i) {
         
-        std::vector<double> point = {
+        point_t point = {
             epsilon + this->source_points[i][0] * ((width - 2*epsilon) / width), 
             epsilon + this->source_points[i][1] * ((height - 2*epsilon) / height), 
             this->source_points[i][2]
@@ -408,7 +487,7 @@ std::vector<std::vector<double>> Mesh::calculate_inverted_transport_map() {
         bool intersection = false;
         target_bvh->query(point, hit, intersection);
         if (intersection) {
-            std::vector<std::vector<double>> vertex_values;
+            std::vector<point_t> vertex_values;
             vertex_values.push_back(source_points[this->triangles[hit.face_id][0]]);
             vertex_values.push_back(source_points[this->triangles[hit.face_id][1]]);
             vertex_values.push_back(source_points[this->triangles[hit.face_id][2]]);
@@ -454,7 +533,7 @@ std::vector<std::vector<double>> Mesh::calculate_inverted_transport_map() {
 }
 
 void Mesh::calculate_and_export_inverted_transport_map(std::string filename, double stroke_width) {
-    std::vector<std::vector<double>> inverted_points = calculate_inverted_transport_map();
+    std::vector<point_t> inverted_points = calculate_inverted_transport_map();
     export_grid_to_svg(inverted_points, this->width, this->height, this->res_x, this->res_y, filename, stroke_width);
 }
 
@@ -576,13 +655,13 @@ double Mesh::step_grid(const std::vector<double>& dfx, const std::vector<double>
     return min_t;
 }
 
-void Mesh::laplacian_smoothing(std::vector<std::vector<double>> &points, double smoothing_factor) {
-    std::vector<std::vector<double>> points_copy;
+void Mesh::laplacian_smoothing(std::vector<point_t> &points, double smoothing_factor) {
+    std::vector<point_t> points_copy;
     for (int i = 0; i < points.size(); i++) {
         int y = i / res_x;
         int x = i % res_x;
 
-        std::vector<double> new_point = points[y * res_x + x];
+        point_t new_point = points[y * res_x + x];
 
         if (x == 0 && y == 0) {
             points_copy.push_back(points[i]);

@@ -213,6 +213,28 @@ double calculate_polygon_area_vec(const std::vector<std::vector<double>> input_p
     return area;
 }
 
+double calculate_partitioned_cell_area(const std::vector<std::vector<std::vector<double>>> input_polygons) {
+	double total_area = 0.0f;
+	for (int j = 0; j < input_polygons.size(); j++)
+	{
+		int n = input_polygons[j].size();
+		double area = 0.0;
+
+		for (int i = 0; i < n; i++) {
+			double x1 = input_polygons[j][i][0];
+			double y1 = input_polygons[j][i][1];
+			double x2 = input_polygons[j][(i + 1) % n][0];
+			double y2 = input_polygons[j][(i + 1) % n][1];
+			area += (x1 * y2) - (x2 * y1);
+		}
+
+		// Take the absolute value and divide by 2
+		total_area += 0.5 * (area);
+	}
+	
+    return total_area;
+}
+
 std::vector<double> calculate_polygon_centroid(std::vector<std::vector<double>> vertices) {
     std::vector<double> centroid;
     centroid.push_back(0.0);
@@ -355,7 +377,7 @@ std::vector<double> get_target_areas(std::vector<std::vector<double>> &image, st
 	double scaling_factor = (width * height) / sum_target_area;
 
 	for (int i=0; i<input_polygons.size(); i++) {
-		target_areas[i] *= scaling_factor + 0.00001;
+		target_areas[i] *= scaling_factor;
 	}
 
 	return target_areas;
@@ -376,6 +398,21 @@ std::vector<double> get_source_areas(std::vector<std::vector<std::vector<double>
 
 	for (int i=0; i<input_polygons.size(); i++) {
 		source_areas.push_back(calculate_polygon_area_vec(input_polygons[i]));
+	}
+
+	return source_areas;
+}
+
+std::vector<double> get_source_areas2(std::vector<std::vector<std::vector<std::vector<double>>>> &input_polygons) {
+	std::vector<double> source_areas;
+
+	for (int i=0; i<input_polygons.size(); i++) {
+		double source_area = 0.0f;
+		for (int j=0; j<input_polygons[i].size(); j++) {
+			source_area += calculate_polygon_area_vec(input_polygons[i][j]);
+		}
+
+		source_areas.push_back(source_area);
 	}
 
 	return source_areas;
