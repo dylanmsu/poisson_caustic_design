@@ -17,6 +17,7 @@ std::vector<double> scale_array_proportional(const std::vector<double>& arr, dou
 // Vector math
 std::vector<std::vector<std::vector<double>>> calculate_gradient(const std::vector<std::vector<double>>& grid);
 std::vector<std::vector<double>> calculate_divergence(const std::vector<std::vector<double>>& Nx, const std::vector<std::vector<double>>& Ny, int nx, int ny);
+std::vector<std::vector<double>> calculate_curl(const std::vector<std::vector<double>>& Nx, const std::vector<std::vector<double>>& Ny, int nx, int ny);
 
 // SVG export
 void export_cells_as_svg(std::vector<std::vector<std::vector<double>>> cells, std::vector<double> intensities, std::string filename);

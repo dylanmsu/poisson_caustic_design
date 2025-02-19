@@ -17,7 +17,7 @@ public:
     std::vector<std::vector<double>> phi;
     std::vector<double> errors;
     std::vector<std::vector<polygon_t>> target_cells;
-    std::vector<polygon_t> source_cells;
+    std::vector<std::vector<polygon_t>> first_target_cells;
     std::vector<double> target_areas;
     std::vector<std::vector<double>> pixels;
     std::vector<std::vector<double>> raster;

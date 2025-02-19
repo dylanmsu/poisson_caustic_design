@@ -231,7 +231,7 @@ double calculate_partitioned_cell_area(const std::vector<std::vector<std::vector
 		// Take the absolute value and divide by 2
 		total_area += 0.5 * (area);
 	}
-	
+
     return total_area;
 }
 
@@ -365,12 +365,17 @@ double integrate_cell_intensities(std::vector<std::vector<double>> &image, std::
     return intensity;
 }
 
-std::vector<double> get_target_areas(std::vector<std::vector<double>> &image, std::vector<std::vector<std::vector<double>>> &input_polygons, int image_w, int image_h, double width, double height) {
+std::vector<double> get_target_partitioned_areas(std::vector<std::vector<double>> &image, std::vector<std::vector<std::vector<std::vector<double>>>> &input_polygons, int image_w, int image_h, double width, double height) {
 	std::vector<double> target_areas;
 	double sum_target_area = 0.0f;
 
 	for (int i=0; i<input_polygons.size(); i++) {
-		target_areas.push_back(integrate_cell_intensities(image, input_polygons[i], image_w, image_h, width));
+		double total_cell_area = 0.0f;
+		for (int j=0; j<input_polygons[i].size(); j++) {
+			total_cell_area += integrate_cell_intensities(image, input_polygons[i][j], image_w, image_h, width);
+			
+		}
+		target_areas.push_back(total_cell_area);
 		sum_target_area += target_areas[i];
 	}
 
@@ -393,17 +398,7 @@ std::vector<double> integrate_grid_into_cells(std::vector<std::vector<double>> &
 	return interpolated;
 }
 
-std::vector<double> get_source_areas(std::vector<std::vector<std::vector<double>>> &input_polygons) {
-	std::vector<double> source_areas;
-
-	for (int i=0; i<input_polygons.size(); i++) {
-		source_areas.push_back(calculate_polygon_area_vec(input_polygons[i]));
-	}
-
-	return source_areas;
-}
-
-std::vector<double> get_source_areas2(std::vector<std::vector<std::vector<std::vector<double>>>> &input_polygons) {
+std::vector<double> get_partitioned_source_areas(std::vector<std::vector<std::vector<std::vector<double>>>> &input_polygons) {
 	std::vector<double> source_areas;
 
 	for (int i=0; i<input_polygons.size(); i++) {

@@ -280,6 +280,29 @@ void Caustic_design::perform_height_map_iteration(int itr) {
         return;
     }
 
+    /*std::vector<std::vector<double>> curl = calculate_curl(norm_x, norm_y, resolution_x, resolution_y);
+    std::vector<double> vertex_curl;
+    for (int i=0; i<mesh->source_points.size(); i++) {
+        vertex_curl.push_back(bilinearInterpolation(curl,
+            (mesh->source_points[i][0] / mesh->width) * (resolution_x) - 0.5, 
+            (mesh->source_points[i][1] / mesh->height) * (resolution_y) - 0.5
+        ));
+    }
+
+    std::vector<polygon_t> cells;
+    std::vector<double> colors;
+
+    for (int i = 0; i < first_target_cells.size(); i++)
+    {
+        for (int j = 0; j < first_target_cells[i].size(); j++)
+        {
+            cells.push_back(first_target_cells[i][j]);
+            colors.push_back(vertex_curl[i]);
+        }
+    }
+
+    export_cells_as_svg(cells, scale_array_proportional(colors, 0.0f, 1.0f), "../curl.svg");*/
+
     // calculates the divergance of the interpolated normals
     divergence = calculate_divergence(norm_x, norm_y, resolution_x, resolution_y);
     subtractAverage(divergence);
@@ -315,19 +338,16 @@ void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) 
 
     mesh = new Mesh(width, height, mesh_res_x, mesh_res_y);
 
-    printf("generated mesh\r\n");
+    std::cout << "built mesh" << std::endl;
 
-    //mesh->export_to_svg("../mesh.svg", 1);
+    target_cells.clear();
+    mesh->build_target_partitioned_dual_cells(target_cells);
 
-    //std::cout << "built mesh" << std::endl;
+    first_target_cells = target_cells;
 
-    //std::vector<std::vector<std::vector<double>>> circ_target_cells;
-    mesh->build_target_dual_cells(target_cells);
-    mesh->build_source_dual_cells(source_cells);
-    //mesh.build_circular_target_dual_cells(circ_target_cells);
+    target_areas = get_target_partitioned_areas(pixels, target_cells, resolution_x, resolution_y, width, height);
 
-    //std::vector<double> target_areas = get_target_areas(pixels, circ_target_cells, resolution_x, resolution_y, width, height);
-    target_areas = get_target_areas(pixels, target_cells, resolution_x, resolution_y, width, height);    
+    std::cout << target_areas.size() << std::endl;
 
     //export_cells_as_svg(target_cells, scale_array_proportional(target_areas, 0.0f, 1.0f), "../cells.svg");
 

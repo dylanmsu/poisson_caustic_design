@@ -19,6 +19,44 @@ std::vector<std::vector<std::vector<double>>> calculate_gradient(const std::vect
     return gradient3D;
 }
 
+std::vector<std::vector<double>> calculate_divergence(const std::vector<std::vector<double>>& Nx, const std::vector<std::vector<double>>& Ny, int nx, int ny) {
+    std::vector<std::vector<double>> divergence(ny, std::vector<double>(nx, 0.0));
+
+    std::vector<std::vector<std::vector<double>>> grad_x = calculate_gradient(Nx);
+    std::vector<std::vector<std::vector<double>>> grad_y = calculate_gradient(Ny);
+
+    for (int y = 0; y < ny; ++y) {
+        for (int x = 0; x < nx; ++x) {
+            if (x == 0 || x == nx - 1 || y == 0 || y == ny - 1) {
+                divergence[y][x] = 0.0; // Set divergence to 0 for boundary cells
+            } else {
+                divergence[y][x] = grad_x[0][y][x] + grad_y[1][y][x]; // Calculate and set divergence
+            }
+        }
+    }
+
+    return divergence;
+}
+
+std::vector<std::vector<double>> calculate_curl(const std::vector<std::vector<double>>& Nx, const std::vector<std::vector<double>>& Ny, int nx, int ny) {
+    std::vector<std::vector<double>> curl(ny, std::vector<double>(nx, 0.0));
+
+    std::vector<std::vector<std::vector<double>>> grad_x = calculate_gradient(Nx);
+    std::vector<std::vector<std::vector<double>>> grad_y = calculate_gradient(Ny);
+
+    for (int y = 0; y < ny; ++y) {
+        for (int x = 0; x < nx; ++x) {
+            if (x == 0 || x == nx - 1 || y == 0 || y == ny - 1) {
+                curl[y][x] = 0.0; // Set curl to 0 for boundary cells
+            } else {
+                curl[y][x] = grad_y[0][y][x] - grad_x[1][y][x]; // Compute curl (dNy/dx - dNx/dy)
+            }
+        }
+    }
+
+    return curl;
+}
+
 void subtractAverage(std::vector<std::vector<double>>& raster) {
     // Calculate the average of the raster
     double sum = 0.0;
@@ -134,58 +172,6 @@ void export_cells_as_svg(std::vector<std::vector<std::vector<double>>> cells, st
     svg_file << "</svg>\n";
     svg_file.close();
 }
-
-/*std::vector<std::vector<double>> calculate_divergence(const std::vector<std::vector<double>>& Nx, const std::vector<std::vector<double>>& Ny, int nx, int ny) {
-    std::vector<std::vector<double>> divergence(ny, std::vector<double>(nx, 0.0));
-
-    for (int y = 0; y < ny; ++y) {
-        for (int x = 0; x < nx; ++x) {
-            // Forward and backward differences for divergence with boundary checks
-            double div_x = 0.0;
-            double div_y = 0.0;
-
-            // Check if neighboring cells are valid (not NaN) before calculating differences
-            if (x < nx - 1 && !std::isnan(Nx[y][x]) && !std::isnan(Nx[y][x + 1])) {
-                div_x = Nx[y][x + 1] - Nx[y][x];
-            }
-
-            if (y < ny - 1 && !std::isnan(Ny[y][x]) && !std::isnan(Ny[y + 1][x])) {
-                div_y = Ny[y + 1][x] - Ny[y][x];
-            }
-
-            // Accumulate the divergence
-            if (std::isnan(Nx[y][x]) || std::isnan(Ny[y][x]) || std::isnan(div_x) || std::isnan(div_y)) {
-                divergence[y][x] = std::numeric_limits<double>::quiet_NaN(); // Set divergence to NaN if any neighbor is NaN
-            } else if (x == 0 || x == nx - 1 || y == 0 || y == ny - 1) {
-                divergence[y][x] = 0.0; // Set divergence to 0 for boundary cells
-            } else {
-                divergence[y][x] = div_x + div_y; // Calculate and set divergence
-            }
-        }
-    }
-
-    return divergence;
-}*/
-
-std::vector<std::vector<double>> calculate_divergence(const std::vector<std::vector<double>>& Nx, const std::vector<std::vector<double>>& Ny, int nx, int ny) {
-    std::vector<std::vector<double>> divergence(ny, std::vector<double>(nx, 0.0));
-
-    std::vector<std::vector<std::vector<double>>> grad_x = calculate_gradient(Nx);
-    std::vector<std::vector<std::vector<double>>> grad_y = calculate_gradient(Ny);
-
-    for (int y = 0; y < ny; ++y) {
-        for (int x = 0; x < nx; ++x) {
-            if (x == 0 || x == nx - 1 || y == 0 || y == ny - 1) {
-                divergence[y][x] = 0.0; // Set divergence to 0 for boundary cells
-            } else {
-                divergence[y][x] = grad_x[0][y][x] + grad_y[1][y][x]; // Calculate and set divergence
-            }
-        }
-    }
-
-    return divergence;
-}//*/
-
 
 void find_perimeter_vertices(int nx, int ny, std::vector<int> &perimeter_vertices) {
     // Top row

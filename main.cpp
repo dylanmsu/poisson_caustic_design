@@ -212,13 +212,6 @@ int main(int argc, char const *argv[]) {
     if (conv_tres) {
         convergence = args::get(conv_tres);
     }
- 
-
-    // Print parsed arguments
-    /*for (const auto& pair : args) {
-        //std::cout << "Key: " << pair.first << ", Value: " << pair.second << std::endl;
-        printf("Key: %s, Value: %s\r\n", pair.first.c_str(), pair.second.c_str());
-    }*/
 
     // Load image to grid
     std::vector<std::vector<double>> pixels;
@@ -252,10 +245,6 @@ int main(int argc, char const *argv[]) {
 
         double step_size = caustic_design.perform_transport_iteration();
 
-        //save_grid_as_image(scale_matrix_proportional(caustic_design.gradient[0], 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../grad_x_" + std::to_string(itr) + ".png");
-        //save_grid_as_image(scale_matrix_proportional(caustic_design.gradient[1], 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../grad_y_" + std::to_string(itr) + ".png");
-        //save_grid_as_image(scale_matrix_proportional(caustic_design.raster, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../raster_" 
-
         if (output_progress) {
             caustic_design.export_paramererization_to_svg(progress_path + "parameterization_" + std::to_string(itr + 1) + ".svg", 1.0f);
             caustic_design.export_inverted_transport_map(progress_path + "inverted.svg", 1.0f);
@@ -270,46 +259,7 @@ int main(int argc, char const *argv[]) {
 
     for (int itr = 0; itr < 3; itr++) {
         caustic_design.perform_height_map_iteration(itr);
-        //save_grid_as_image(scale_matrix_proportional(caustic_design.h, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../h" + std::to_string(itr) + ".png");
-        //save_grid_as_image(scale_matrix_proportional(caustic_design.divergence, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../div" + std::to_string(itr) + ".png");
-        //save_grid_as_image(scale_matrix_proportional(caustic_design.norm_x, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "norm_x" + std::to_string(itr) + ".png");
-        //save_grid_as_image(scale_matrix_proportional(caustic_design.norm_y, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "norm_y" + std
     }
-
-    /*std::vector<std::vector<double>> normals;
-    std::vector<std::vector<double>> normals_trg;
-    for (int i=0; i<caustic_design.mesh->source_points.size(); i++) {
-        std::vector<double> normal = caustic_design.calculate_vertex_normal(caustic_design.mesh->source_points, i);
-        normal[2] *= (mesh_resolution * 4) / mesh_width;
-        normal = normalize(normal);
-
-        normals_trg.push_back(normalize({
-            caustic_design.normals[0][i],
-            caustic_design.normals[1][i],
-            caustic_design.normals[2][i]
-        }));
-
-        normals.push_back(normal);
-    }
-
-    std::vector<double> E_int;
-    for (int i=0; i<caustic_design.mesh->source_points.size(); i++) {
-        std::vector<double> diff = vector_subtract(normals[i], normals_trg[i]);
-        double energy = diff[0]*diff[0] + diff[1]*diff[1] + diff[2]*diff[2];
-        E_int.push_back(energy);
-    }
-
-    /*bool miss = false;
-    std::vector<std::vector<double>> norm_x = caustic_design.mesh->interpolate_raster_source(x_normals, 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, miss);
-    std::vector<std::vector<double>> norm_y = caustic_design.mesh->interpolate_raster_source(y_normals, 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, miss);
-    save_grid_as_image(scale_matrix_proportional(norm_x, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../x_normals.png");
-    save_grid_as_image(scale_matrix_proportional(norm_y, 0.0f, 1.0f), 4*mesh_resolution, 4*mesh_resolution / aspect_ratio, "../y_normals.png");
-    //*/
-
-    //export_cells_as_svg(caustic_design.source_cells, scale_array_proportional(E_int, 0.0f, 1.0f), "../integration_energy.svg");
-    //export_cells_as_svg(caustic_design.source_cells, scale_array_proportional(y_normals_trg, 0.0f, 1.0f), "../y_normals_trg.svg");
-    //export_cells_as_svg(caustic_design.source_cells, scale_array_proportional(x_normals, 0.0f, 1.0f), "../x_normals.svg");
-    //export_cells_as_svg(caustic_design.source_cells, scale_array_proportional(y_normals, 0.0f, 1.0f), "../y_normals.svg");
 
     printf("Height solver done! Exporting as solidified obj\r\n");
 
