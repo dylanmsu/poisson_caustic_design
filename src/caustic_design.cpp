@@ -308,7 +308,7 @@ std::vector<double> compute_laplacian(Mesh &mesh, std::vector<int> adjacent_tria
             edge2 = sub(mesh.target_points[k], mesh.target_points[i]);
             double cot_k = cot(edge1, edge2);
 
-            laplacian[j_index] = 1;
+            laplacian[j_index] = 0.5*cot_k;
 
             //std::cout << "k=" << k << std::endl;
 
@@ -331,8 +331,8 @@ void poisson_solver_unstructured(
     Mesh &mesh, std::vector<double> &input, std::vector<double> &solution, int num_threads = 1) {
     
     double omega = 1.0;
-    const int max_iterations = 1000;
-    const double tolerance = 0.01;
+    const int max_iterations = 100000000;
+    const double tolerance = 0.0001;
 
     std::mutex max_update_mutex;
     std::atomic<double> max_update;
@@ -357,7 +357,7 @@ void poisson_solver_unstructured(
 
         for (int j = 0; j < neighboring_vertices.size(); j++)
         {
-            double weight = laplacian[j] / magnitude(sub(mesh.target_points[i], mesh.target_points[j]));
+            double weight = laplacian[j];
             neighbor_cnt += weight;
             neighbor_sum += weight * solution[neighboring_vertices[j]]; // Access via neighbor indices
         }
@@ -542,8 +542,12 @@ double Caustic_design::perform_transport_iteration() {
     std::vector<double> source_areas = get_source_areas(target_cells);
     calculate_errors(source_areas, target_areas, target_cells, errors);
 
+    std::vector<double> solution(errors.size(), 0.0f);
+    subtractAverageVec(errors);
+    poisson_solver_unstructured(mesh, errors, solution, nthreads);
+
     // rasterize the mesh into a uniform rectangular matrix
-    bool triangle_miss = false;
+    /*bool triangle_miss = false;
     raster = mesh.interpolate_raster_target(errors, resolution_x, resolution_y, triangle_miss);
     
     if (triangle_miss) {
@@ -553,7 +557,10 @@ double Caustic_design::perform_transport_iteration() {
 
     // solve the poisson equation 3 in the paper
     subtractAverage(raster);
-    poisson_solver(raster, phi, resolution_x, resolution_y, 100000, 0.0000001, nthreads);
+    poisson_solver(raster, phi, resolution_x, resolution_y, 100000, 0.0000001, nthreads);*/
+
+    bool triangle_miss = false;
+    phi = mesh.interpolate_raster_target(solution, resolution_x, resolution_y, triangle_miss);
 
     // calculate the gradient given by equation 4
     gradient = calculate_gradient(phi);
@@ -596,7 +603,7 @@ double Caustic_design::perform_transport_iteration() {
 
     // step the mesh vertices in the direction of their gradient vector
     //mesh.step_grid(vertex_gradient[0], vertex_gradient[1], 0.0005f);
-    mesh.step_grid(vertex_gradient[0], vertex_gradient[1], 0.05f);
+    mesh.step_grid(vertex_gradient[0], vertex_gradient[1], 0.5f);
 
     //mesh.laplacian_smoothing(mesh.target_points, 0.5f);
 
