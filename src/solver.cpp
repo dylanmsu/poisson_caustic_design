@@ -9,7 +9,7 @@
 double solver_progress = 0.0f;
 
 // perform a relaxation step
-double patial_relax(std::vector<std::vector<double>> &output, std::vector<std::vector<double>> &input, int width, int height, double omega, int start_x, int start_y, int end_x, int end_y) {
+double patial_relax(std::vector<std::vector<double>> &output, std::vector<std::vector<double>> &input, int width, int height, double hx, double hy, double omega, int start_x, int start_y, int end_x, int end_y) {
     int x, y;
     double max_update = 0.0;
 
@@ -44,7 +44,7 @@ double patial_relax(std::vector<std::vector<double>> &output, std::vector<std::v
             }
 
             // calculate delta
-            delta = omega / neighbor_cnt * (neighbor_sum - neighbor_cnt * val - input[y][x]);
+            delta = omega / neighbor_cnt * (neighbor_sum - neighbor_cnt * val - (hx * hy) * input[y][x]);
 
             // get max update
             double abs_delta = fabs(delta);
@@ -67,7 +67,10 @@ void calculate_progress(int value, int minValue, int maxValue) {
     solver_progress = static_cast<double>(value - minValue) / (maxValue - minValue);
 }
 
-void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::vector<double>> &output, int width, int height, int max_iterations, double convergence_threshold, int max_threads) {
+void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::vector<double>> &output, double hx, double hy, int max_iterations, double convergence_threshold, int max_threads) {
+    const int height = input.size();
+    const int width = input[0].size();
+    
     double omega = 2.0 / (1.0 + 3.14159265 / width);
 
     int num_threads = std::thread::hardware_concurrency();
@@ -97,7 +100,7 @@ void poisson_solver(std::vector<std::vector<double>> &input, std::vector<std::ve
         // Function to process a portion of the grid
         auto process_grid_part = [&](int start_x, int start_y, int end_x, int end_y) {
             double local_max_update = 0.0;
-            local_max_update = patial_relax(output, input, width, height, omega, start_x, start_y, end_x, end_y);
+            local_max_update = patial_relax(output, input, width, height, hx, hy, omega, start_x, start_y, end_x, end_y);
             
             mtx.lock();
             if (max_update < local_max_update) {

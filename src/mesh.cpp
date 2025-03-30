@@ -21,6 +21,8 @@ Mesh::Mesh(double width, double height, int res_x, int res_y)
         this->source_points.push_back(this->target_points[i]);
     }
 
+    build_adjacency_lookups();
+
     // Create instance of the bvh class used for interpolation
     target_bvh = new Bvh(triangles, target_points);
     source_bvh = new Bvh(triangles, source_points);
@@ -117,10 +119,11 @@ void Mesh::build_vertex_to_triangles() {
     }
 }
 
-// find triangles and edges connected to a specific vertex by index
-std::pair<std::vector<std::pair<int, int>>, std::vector<int>> Mesh::find_adjacent_elements(int vertex_index) {
+// find triangles, edges, and neighboring vertices connected to a specific vertex by index
+std::tuple<std::vector<std::pair<int, int>>, std::vector<int>, std::vector<int>> Mesh::find_adjacent_elements(int vertex_index) {
     std::unordered_set<std::pair<int, int>, HashPair> adjacent_edges;
     std::unordered_set<int> adjacent_triangles;
+    std::unordered_set<int> neighboring_vertices;
 
     // Find triangles containing the vertex
     auto triangles_containing_vertex = vertex_to_triangles.find(vertex_index);
@@ -129,11 +132,21 @@ std::pair<std::vector<std::pair<int, int>>, std::vector<int>> Mesh::find_adjacen
             adjacent_triangles.insert(triangle_index);
             const std::vector<int>& triangle = triangles[triangle_index];
 
-            // Find edges directly connected to the vertex
+            // Find edges and neighboring vertices directly connected to the vertex
             for (int j = 0; j < 3; ++j) {
-                std::pair<int, int> edge = std::make_pair(triangle[j], triangle[(j + 1) % 3]);
-                if (vertex_index == edge.first || vertex_index == edge.second) {
-                    adjacent_edges.insert(std::make_pair(std::min(edge.first, edge.second), std::max(edge.first, edge.second)));
+                int v1 = triangle[j];
+                int v2 = triangle[(j + 1) % 3];
+
+                // Add edge if it involves the vertex
+                if (vertex_index == v1 || vertex_index == v2) {
+                    adjacent_edges.insert(std::make_pair(std::min(v1, v2), std::max(v1, v2)));
+                }
+
+                // Add neighboring vertex (other vertex of the edge if it's not the input vertex)
+                if (v1 == vertex_index) {
+                    neighboring_vertices.insert(v2);
+                } else if (v2 == vertex_index) {
+                    neighboring_vertices.insert(v1);
                 }
             }
         }
@@ -142,9 +155,192 @@ std::pair<std::vector<std::pair<int, int>>, std::vector<int>> Mesh::find_adjacen
     // Convert sets to vectors
     std::vector<std::pair<int, int>> adjacent_edges_vector(adjacent_edges.begin(), adjacent_edges.end());
     std::vector<int> adjacent_triangles_vector(adjacent_triangles.begin(), adjacent_triangles.end());
+    std::vector<int> neighboring_vertices_vector(neighboring_vertices.begin(), neighboring_vertices.end());
 
-    return std::make_pair(adjacent_edges_vector, adjacent_triangles_vector);
+    return std::make_tuple(adjacent_edges_vector, adjacent_triangles_vector, neighboring_vertices_vector);
 }
+
+bool Mesh::is_boundary_vertex(int vertex_index, std::vector<std::pair<int, int>>& boundary_edges) {
+    std::unordered_map<std::pair<int, int>, int, HashPair> edge_triangle_count;
+    for (int triangle_index : vertex_adjecent_triangles[vertex_index]) {
+        const std::vector<int>& triangle = this->triangles[triangle_index];
+        for (int j = 0; j < 3; ++j) {
+            int v1 = triangle[j];
+            int v2 = triangle[(j + 1) % 3];
+            std::pair<int, int> edge = std::make_pair(std::min(v1, v2), std::max(v1, v2));
+            edge_triangle_count[edge]++;
+        }
+    }
+
+    bool is_boundary = false;
+    for (const auto& edge : vertex_adjecent_edges[vertex_index]) {
+        if (edge_triangle_count[edge] == 1) { // Boundary edge
+            boundary_edges.push_back(edge);
+            is_boundary = true;
+        }
+    }
+
+    return is_boundary;
+}
+
+void Mesh::build_adjacency_lookups() {
+    for (int i = 0; i < source_points.size(); i++)
+    {
+        auto [adjacent_edges, adjacent_triangles, neighboring_vertices] = find_adjacent_elements(i);
+        vertex_adjecent_edges.push_back(adjacent_edges);
+        vertex_adjecent_triangles.push_back(adjacent_triangles);
+        vertex_adjecent_vertices.push_back(neighboring_vertices);
+    }
+
+    for (int i = 0; i < source_points.size(); i++)
+    {
+        std::vector<std::pair<int, int>> boundary_edges;
+        bool is_boundary = is_boundary_vertex(i, boundary_edges);
+        vertex_is_boundary.push_back(is_boundary);
+    }
+    
+    
+}
+
+std::vector<double> cross_v(std::vector<double> v1, std::vector<double> v2){
+    std::vector<double> result(3);
+    result[0] = v1[1]*v2[2] - v1[2]*v2[1];
+    result[1] = v1[2]*v2[0] - v1[0]*v2[2];
+    result[2] = v1[0]*v2[1] - v1[1]*v2[0];
+    return result;
+}
+
+double dot_v(std::vector<double> a, std::vector<double> b) {
+    return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+}
+
+std::vector<double> mult_v(double a, std::vector<double> b) {
+    return {a*b[0], a*b[1], a*b[2]};
+}
+
+std::vector<double> add_v(std::vector<double> a, std::vector<double> b) {
+    return {a[0] + b[0], a[1] + b[1], a[2] + b[2]};
+}
+
+std::vector<double> sub_v(std::vector<double> a, std::vector<double> b) {
+    return {a[0] - b[0], a[1] - b[1], a[2] - b[2]};
+}
+
+double magnitude_v(std::vector<double> a) {
+    return std::sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
+}
+
+double cot(const std::vector<double>& a, const std::vector<double>& b) {
+    auto cross_product = cross_v(a, b);
+    double cross_magnitude = magnitude_v(cross_product);
+
+    if (cross_magnitude < 1e-12) {
+        //throw std::invalid_argument("Vectors are parallel or one is a zero vector, cotangent undefined.");
+        cross_magnitude = 1e-12;
+    }
+
+    return dot_v(a, b) / cross_magnitude;
+}
+
+std::vector<double> Mesh::compute_laplacian(int i) {
+    std::vector<double> laplacian(vertex_adjecent_vertices[i].size(), 0.0f);
+
+    for (int j_index = 0; j_index < vertex_adjecent_vertices[i].size(); ++j_index) {
+        int j = vertex_adjecent_vertices[i][j_index];
+
+        // Find triangles shared between `i` and `j`
+        std::vector<int> shared_triangles;
+        for (int triangle : vertex_adjecent_triangles[i]) {
+          // Check if `j` is one of the vertices in this triangle
+          const auto& vertices = triangles[triangle];
+          if (std::find(vertices.begin(), vertices.end(), j) != vertices.end()) {
+              shared_triangles.push_back(triangle);
+          }
+        }
+
+        // Handle cases based on the number of shared triangles
+        if (shared_triangles.size() == 2) {
+            // Interior case: Two triangles are connected
+            std::vector<int> k_vertices;
+            for (int triangle : shared_triangles) {
+                for (int vertex : this->triangles[triangle]) {
+                    if (vertex != i && vertex != j) {
+                        k_vertices.push_back(vertex);
+                        break; // Only one `k` per triangle
+                    }
+                }
+            }
+
+            // Ensure we found two `k` vertices
+            if (k_vertices.size() != 2) {
+                throw std::runtime_error("Error identifying k vertices in triangles.");
+            }
+
+            int k1 = k_vertices[0];
+            int k2 = k_vertices[1];
+
+            std::vector<double> edge1;
+            std::vector<double> edge2;
+
+            edge1 = sub_v(this->source_points[k1], this->source_points[j]);
+            edge2 = sub_v(this->source_points[k1], this->source_points[i]);
+            double cot_k1 = cot(edge1, edge2);
+
+            edge1 = sub_v(this->source_points[k2], this->source_points[j]);
+            edge2 = sub_v(this->source_points[k2], this->source_points[i]);
+            double cot_k2 = cot(edge1, edge2);
+
+            laplacian[j_index] += cot_k1 * 0.5;
+            laplacian[j_index] += cot_k2 * 0.5;
+
+            //std::cout << "k1=" << k1 << ", k2=" << k2 << std::endl;
+
+        } else if (shared_triangles.size() == 1) {
+            // Boundary case: Only one triangle is connected
+            int triangle = shared_triangles[0];
+            int k = -1;
+
+            // Find the single `k` vertex
+            for (int vertex : this->triangles[triangle]) {
+                if (vertex != i && vertex != j) {
+                    k = vertex;
+                    break;
+                }
+            }
+
+            if (k == -1) {
+                throw std::runtime_error("Error identifying k vertex in boundary triangle.");
+            }
+
+            std::vector<double> edge1;
+            std::vector<double> edge2;
+
+            edge1 = sub_v(this->source_points[k], this->source_points[j]);
+            edge2 = sub_v(this->source_points[k], this->source_points[i]);
+            double cot_k = cot(edge1, edge2);
+
+            laplacian[j_index] += cot_k;
+
+            //std::cout << "k=" << k << std::endl;
+
+        } else {
+            throw std::runtime_error("No shared triangles between i and j; invalid mesh or disconnected vertex.");
+        }
+    }
+
+    return laplacian;
+}
+
+void Mesh::calculate_vertex_laplacians() {
+    build_adjacency_lookups();
+    vertex_laplacians.clear();
+    
+    for (int i = 0; i < this->source_points.size(); i++)
+    {
+        vertex_laplacians.push_back(compute_laplacian(i));
+    }
+}
+
 
 // Function to calculate angle between two points with respect to a reference point
 double calculateAngle(const point_t& a, const point_t& reference) {
@@ -201,17 +397,68 @@ polygon_t Mesh::get_triangle_quad(int vertex_idx_i, int triangle_idx, std::vecto
 std::vector<polygon_t> Mesh::get_partitioned_barycentric_dual_cell(int v_point, std::vector<std::vector<double>>& points) {
     std::vector<polygon_t> cell;
 
-    auto adjacent_elements = find_adjacent_elements(v_point);
-    std::vector<int>& adjacent_triangles = adjacent_elements.second;
-
-    for (int i = 0; i < adjacent_triangles.size(); i++)
+    for (int i = 0; i < vertex_adjecent_triangles[v_point].size(); i++)
     {
-        int adjacent_triangle_idx = adjacent_triangles[i];
+        int adjacent_triangle_idx = vertex_adjecent_triangles[v_point][i];
 
         cell.push_back(get_triangle_quad(v_point, adjacent_triangle_idx, points));
     }
     
     return cell;
+}
+
+void Mesh::smoothMeshUntilNoFlops(std::vector<std::vector<int>> &triangles, std::vector<point_t> &points, const std::vector<std::vector<double>> &laplacian, const std::vector<std::vector<int>> &vertex_adjacent_vertices) {
+    const int maxIterations = 100; // Limit iterations to prevent infinite loops
+    const double epsilon = 1e-6;  // Small threshold for detecting flopped triangles
+    
+    for (int iter = 0; iter < maxIterations; ++iter) {
+        bool hasFloppedTriangles = false;
+        std::vector<point_t> newPoints = points;
+        
+        for (size_t i = 0; i < points.size(); ++i) {
+            // Skip boundary points
+            if (vertex_is_boundary[i]) continue;
+            
+            point_t displacement = {0.0, 0.0, 0.0};
+            double weightSum = 0.0;
+            
+            for (size_t j = 0; j < vertex_adjacent_vertices[i].size(); ++j) {
+                int neighbor = vertex_adjacent_vertices[i][j];
+                double weight = laplacian[i][j];
+                
+                displacement[0] += weight * (points[neighbor][0] - points[i][0]);
+                displacement[1] += weight * (points[neighbor][1] - points[i][1]);
+                displacement[2] += weight * (points[neighbor][2] - points[i][2]);
+                weightSum += weight;
+            }
+            
+            if (weightSum > 0.0) {
+                newPoints[i][0] += 0.5 * (displacement[0] / weightSum);
+                newPoints[i][1] += 0.5 * (displacement[1] / weightSum);
+                newPoints[i][2] += 0.5 * (displacement[2] / weightSum);
+            }
+        }
+        
+        // Check if any triangles are still flopped
+        for (const auto &tri : triangles) {
+
+            std::vector<std::vector<double>> triangle;
+            triangle.push_back(points[tri[0]]);
+            triangle.push_back(points[tri[1]]);
+            triangle.push_back(points[tri[2]]);
+
+            double eps = 1e-12;
+
+            double area = calculate_polygon_area_vec(triangle);
+            if (area < epsilon) {
+                hasFloppedTriangles = true;
+                break;
+            }
+        }
+        
+        points = newPoints;
+        if (!hasFloppedTriangles) break;
+    }
 }
 
 // build barycentric dual mesh for the source mesh
@@ -230,9 +477,9 @@ void Mesh::build_target_partitioned_dual_cells(std::vector<std::vector<polygon_t
     }
 }
 
-// interpolate target mesh into a rectangular grid
-std::vector<std::vector<double>> Mesh::interpolate_raster_target(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss) {
-    build_target_bvh(5, 30);
+std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<double>& errors, std::vector<std::vector<double>>& points, std::vector<std::vector<int>> &triangles, int res_x, int res_y, double width, double height, bool &triangle_miss) {
+    Bvh *bvh = new Bvh(triangles, points);
+    bvh->build(5, 30);
     
     // Generate x and y vectors
     std::vector<double> x(res_x);
@@ -261,12 +508,15 @@ std::vector<std::vector<double>> Mesh::interpolate_raster_target(const std::vect
             point_t point = {x[j], y[i]};
             Hit hit;
             bool intersection = false;
-            target_bvh->query(point, hit, intersection);
+            bvh->query(point, hit, intersection);
             if (intersection) {
                 std::vector<double> vertex_values;
-                vertex_values.reserve(3);
-                for (int k = 0; k < 3; ++k)
-                    vertex_values.push_back(errors[triangles[hit.face_id][k]]);
+                for (int k = 0; k < 3; ++k) {
+                    int value_index = triangles[hit.face_id][k];
+                    double value = errors[value_index];
+                    vertex_values.push_back(value);
+                }
+                    
                 double interpolation = 
                     vertex_values[0]*hit.barycentric_coords[0] + 
                     vertex_values[1]*hit.barycentric_coords[1] + 
@@ -288,60 +538,13 @@ std::vector<std::vector<double>> Mesh::interpolate_raster_target(const std::vect
 }
 
 // interpolate target mesh into a rectangular grid
+std::vector<std::vector<double>> Mesh::interpolate_raster_target(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss) {
+    return interpolate_raster(errors, this->target_points, this->triangles, res_x, res_y, this->width, this->height, triangle_miss);
+}
+
+// interpolate target mesh into a rectangular grid
 std::vector<std::vector<double>> Mesh::interpolate_raster_source(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss) {
-    build_source_bvh(5, 30);
-    
-    // Generate x and y vectors
-    std::vector<double> x(res_x);
-    std::vector<double> y(res_y);
-
-    double epsilon = 1e-8;//std::numeric_limits<float>::epsilon();
-
-    for (int i = 0; i < res_x; ++i) {
-        //x[i] = ((static_cast<double>(i) + 1) / res_x) * width - (1 * width) / (res_x);
-        x[i] = static_cast<double>(i) * (width - epsilon) / (res_x - 1) + 0.5 * epsilon;
-        //x[i] = (static_cast<double>(i) + 1) * width / (res_x);
-        //x[i] = x[i] - 0.000001 / res_x;
-    }
-
-    for (int i = 0; i < res_y; ++i) {
-        //y[i] = static_cast<double>(i) * height / (res_y - 1);
-        y[i] = static_cast<double>(i) * (height - epsilon) / (res_y - 1) + 0.5 * epsilon;
-        //y[i] = y[i] - 0.000001 / res_y;
-    }
-
-    // Generate raster
-    std::vector<std::vector<double>> raster;
-    for (int i = 0; i < res_y; ++i) {
-        std::vector<double> row;
-        for (int j = 0; j < res_x; ++j) {
-            point_t point = {x[j], y[i]};
-            Hit hit;
-            bool intersection = false;
-            source_bvh->query(point, hit, intersection);
-            if (intersection) {
-                std::vector<double> vertex_values;
-                vertex_values.reserve(3);
-                for (int k = 0; k < 3; ++k)
-                    vertex_values.push_back(errors[triangles[hit.face_id][k]]);
-                double interpolation = 
-                    vertex_values[0]*hit.barycentric_coords[0] + 
-                    vertex_values[1]*hit.barycentric_coords[1] + 
-                    vertex_values[2]*hit.barycentric_coords[2];
-                row.push_back(interpolation);
-                triangle_miss = false;
-            } else {
-                printf("interpolation miss!\r\n");
-                printf("x: %f, y: %f\r\n", point[0], point[1]);
-                exit(0);
-                triangle_miss = true;
-                row.push_back(NAN);
-            }
-        }
-        raster.push_back(row);
-    }
-
-    return raster;
+    return interpolate_raster(errors, this->source_points, this->triangles, res_x, res_y, this->width, this->height, triangle_miss);
 }
 
 // exports the inverted transport map as svg (mesh where its density distrbution is dependent on the image intensity)
@@ -444,7 +647,7 @@ std::vector<double> find_t(const point_t& p1, const point_t& p2, const point_t& 
 }
 
 // Function to find the minimum delta_t values for each triangle
-double Mesh::find_min_delta_t(const std::vector<std::vector<double>>& velocities) {
+double Mesh::find_min_delta_t(std::vector<std::vector<double>>& velocities) {
     std::vector<double> min_t_values;
 
     //for (const auto& triangle : this->triangles) {
@@ -462,10 +665,10 @@ double Mesh::find_min_delta_t(const std::vector<std::vector<double>>& velocities
         std::vector<double> valid_t_values;
         for (int i=0; i<t_values.size(); i++) {
             //printf("delta_t[0] = %f, delta_t[1] = %f\r\n", t_values[i][0], t_values[i][1]);
-            if (t_values[i][0] > 0) {
+            if (t_values[i][0] > 0 && t_values[i][0] < 10e3) {
                 valid_t_values.push_back(t_values[i][0]);
             }
-            if (t_values[i][1] > 0) {
+            if (t_values[i][1] > 0 && t_values[i][1] < 10e3) {
                 valid_t_values.push_back(t_values[i][1]);
             }
         }
@@ -473,7 +676,7 @@ double Mesh::find_min_delta_t(const std::vector<std::vector<double>>& velocities
         if (!valid_t_values.empty()) {
             min_t_values.push_back(*std::min_element(valid_t_values.begin(), valid_t_values.end()));
         } else {
-            min_t_values.push_back(std::numeric_limits<double>::infinity());
+            min_t_values.push_back(1);
         }
     }
 

@@ -6,6 +6,8 @@ project(CausticEngineering)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_BUILD_TYPE Release)
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 # Add include directories

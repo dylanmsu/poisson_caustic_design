@@ -20,14 +20,17 @@ public:
     std::vector<std::vector<polygon_t>> first_target_cells;
     std::vector<double> target_areas;
     std::vector<std::vector<double>> pixels;
+    std::vector<std::vector<double>> pixels_trg;
     std::vector<std::vector<double>> raster;
-    std::vector<std::vector<std::vector<double>>> gradient;
+    //std::vector<std::vector<std::vector<double>>> gradient;
     std::vector<std::vector<double>> h;
     std::vector<std::vector<double>> divergence;
     std::vector<std::vector<double>> norm_x;
     std::vector<std::vector<double>> norm_y;
     std::vector<std::vector<double>> vertex_gradient;
     std::vector<std::vector<double>> normals;
+
+    std::vector<std::vector<double>> kantorovich_potential;
 
     int mesh_res_x;
     int mesh_res_y;
@@ -48,7 +51,9 @@ public:
 
     void perform_height_map_iteration(int itr);
 
-    void initialize_solvers(std::vector<std::vector<double>> image);
+    void initialize_solvers(std::vector<std::vector<double>> image, std::vector<std::vector<double>> target);
+
+    std::vector<std::vector<double>> calculate_updated_distribution(std::vector<std::vector<double>> image, std::vector<std::vector<double>> u_x, std::vector<std::vector<double>> u_y);
 
     void set_mesh_resolution(int width, int heigth);
     void set_domain_resolution(int width, int heigth);

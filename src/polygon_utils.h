@@ -38,7 +38,7 @@ poly_t *poly_new();
 void poly_free(poly_t *p);
 void poly_append(poly_t *p, vec_t *v);
 
-double integrate_cell_intensities(std::vector<std::vector<double>> &image, poly_t *polygon, int image_w, int image_h, double width);
+double integrate_cell_intensities(std::vector<std::vector<double>> &image, std::vector<std::vector<double>> &polygon, int image_w, int image_h, double width);
 void integrate_cell_gradient(std::vector<std::vector<double>> &grad_x, std::vector<std::vector<double>> &grad_y, std::vector<std::vector<double>> &input_polygon, int grad_w, int grad_h, double width, double &interp_x, double &interp_y);
 
 std::vector<std::vector<double>> integrate_cell_gradients(std::vector<std::vector<std::vector<double>>> &gradient, std::vector<std::vector<std::vector<double>>> &input_polygons, int image_w, int image_h, double width, double height);

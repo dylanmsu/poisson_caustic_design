@@ -30,8 +30,6 @@ struct HashPair {
 
 class Mesh {
     private:
-        std::vector<std::vector<int>> triangles;
-
         std::unordered_map<int, std::vector<int>> vertex_to_triangles;
 
         // stores the BVH tree for the target mesh
@@ -40,7 +38,6 @@ class Mesh {
 
         void generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<point_t> &points);
         void build_vertex_to_triangles();
-        std::pair<std::vector<std::pair<int, int>>, std::vector<int>> find_adjacent_elements(int vertex_index);
 
         double find_min_delta_t(const std::vector<std::vector<double>>& velocities);
 
@@ -50,12 +47,27 @@ class Mesh {
 
         std::vector<point_t> source_points;
         std::vector<point_t> target_points;
+        std::vector<std::vector<int>> triangles;
+
+        std::vector<std::vector<std::pair<int, int>>> vertex_adjecent_edges;
+        std::vector<std::vector<int>> vertex_adjecent_triangles;
+        std::vector<std::vector<int>> vertex_adjecent_vertices;
+        std::vector<bool> vertex_is_boundary;
+        std::vector<std::vector<double>> vertex_laplacians;
 
         double width;
         double height;
 
         int res_x;
         int res_y;
+
+        void build_adjacency_lookups();
+        bool is_boundary_vertex(int vertex_index, std::vector<std::pair<int, int>>& boundary_edges);
+        void calculate_vertex_laplacians();
+        std::vector<double> compute_laplacian(int i);
+        void smoothMeshUntilNoFlops(std::vector<std::vector<int>> &triangles, std::vector<point_t> &points, const std::vector<std::vector<double>> &laplacian, const std::vector<std::vector<int>> &vertex_adjacent_vertices);
+
+        std::tuple<std::vector<std::pair<int, int>>, std::vector<int>, std::vector<int>> find_adjacent_elements(int vertex_index);
 
         int find_shared_triangle(int v, const std::pair<int, int>& e1, const std::pair<int, int>& e2);
 
@@ -72,6 +84,7 @@ class Mesh {
         void build_target_partitioned_dual_cells(std::vector<std::vector<polygon_t>> &cells);
         void build_source_partitioned_dual_cells(std::vector<std::vector<polygon_t>> &cells);
 
+        std::vector<std::vector<double>> interpolate_raster(const std::vector<double>& errors, std::vector<std::vector<double>>& points, std::vector<std::vector<int>> &triangles, int res_x, int res_y, double width, double height, bool &triangle_miss);
         std::vector<std::vector<double>> interpolate_raster_target(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss);
         std::vector<std::vector<double>> interpolate_raster_source(const std::vector<double>& errors, int res_x, int res_y, bool &triangle_miss);
 
@@ -101,6 +114,8 @@ class Mesh {
         void laplacian_smoothing(std::vector<point_t> &points, double smoothing_factor);
 
         void get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_vertex, int &top_vertex, int &bottom_vertex);
+
+        double find_min_delta_t(std::vector<std::vector<double>>& velocities);
 };
 
 #endif

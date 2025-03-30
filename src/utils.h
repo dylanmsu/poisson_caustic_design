@@ -20,7 +20,7 @@ std::vector<std::vector<double>> calculate_divergence(const std::vector<std::vec
 std::vector<std::vector<double>> calculate_curl(const std::vector<std::vector<double>>& Nx, const std::vector<std::vector<double>>& Ny, int nx, int ny);
 
 // SVG export
-void export_cells_as_svg(std::vector<std::vector<std::vector<double>>> cells, std::vector<double> intensities, std::string filename);
+void export_cells_as_svg(std::vector<std::vector<std::vector<std::vector<double>>>> cells, std::vector<double> intensities, std::string filename);
 void export_grid_to_svg(std::vector<std::vector<double>> &points, double width, double height, int res_x, int res_y, std::string filename, double stroke_width);
 void export_triangles_to_svg(std::vector<std::vector<double>> &points, std::vector<std::vector<int>> &triangles, double width, double height, int res_x, int res_y, std::string filename, double stroke_width);
 

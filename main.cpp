@@ -140,6 +140,7 @@ int main(int argc, char const *argv[]) {
     args::HelpFlag help(parser, "help", "Display this help menu", {'h', "help"});
 
     args::ValueFlag<std::string>    input_png(parser, "image", "Image input", {"input_png"});
+    args::ValueFlag<std::string>    target_png(parser, "image", "Image input", {"target_png"});
     args::ValueFlag<std::string>    progress_output(parser, "progress", "Transport progress output in SVG", {"progress_out"});
     args::ValueFlag<std::string>    obj_output(parser, "output", "3D OBJ file output", {"output"});
 
@@ -173,6 +174,7 @@ int main(int argc, char const *argv[]) {
 
     // default values
     std::string image_filename = "";
+    std::string target_filename = "";
     std::string progress_path = "./";
     std::string output_path = "./";
     int mesh_resolution = 100;
@@ -186,6 +188,9 @@ int main(int argc, char const *argv[]) {
 
     if (input_png) { 
         image_filename = args::get(input_png);
+    }
+    if (target_png) { 
+        target_filename = args::get(target_png);
     }
     if (progress_output) {
         progress_path = args::get(progress_output);
@@ -217,9 +222,14 @@ int main(int argc, char const *argv[]) {
     std::vector<std::vector<double>> pixels;
     image_to_grid(image_filename, pixels);
     double aspect_ratio = (double)pixels[0].size() / (double)pixels.size();
-
     std::vector<std::vector<double>> resized_pixels;
     resize_image(pixels, resized_pixels, 4 * mesh_resolution, 4 * mesh_resolution / aspect_ratio);
+
+    std::vector<std::vector<double>> pixels_trg;
+    image_to_grid(target_filename, pixels_trg);
+    std::vector<std::vector<double>> resized_pixels_trg;
+    resize_image(pixels_trg, resized_pixels_trg, 4 * mesh_resolution, 4 * mesh_resolution / aspect_ratio);
+
 
     Caustic_design caustic_design;
 
@@ -234,13 +244,13 @@ int main(int argc, char const *argv[]) {
     caustic_design.set_lens_thickness(lens_thickness);
     caustic_design.set_solver_max_threads(max_cpu_threads);
 
-    caustic_design.initialize_solvers(resized_pixels);
+    caustic_design.initialize_solvers(resized_pixels, resized_pixels_trg);
 
     if (output_progress) {
         caustic_design.export_paramererization_to_svg(progress_path + "parameterization_0.svg", 0.5f);
     }
     
-    for (int itr = 0; itr < 50; itr++) {
+    for (int itr = 0; itr < 1000; itr++) {
         printf("starting iteration %i\r\n", itr);
 
         double step_size = caustic_design.perform_transport_iteration();
@@ -252,7 +262,7 @@ int main(int argc, char const *argv[]) {
         
         printf("\tTransport step size = %f, convergence at %f\r\n", step_size, convergence);
 
-        if (step_size < convergence) break;
+        //if (step_size < convergence) break;
     }
 
     printf("\033[0;32mTransport map solver done! Starting height solver.\033[0m\r\n");

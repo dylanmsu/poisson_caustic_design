@@ -120,7 +120,11 @@ std::vector<std::vector<double>> scale_matrix_proportional(const std::vector<std
     for (size_t i = 0; i < rows; ++i) {
         for (size_t j = 0; j < cols; ++j) {
             if (!std::isnan(matrix[i][j])) {
-                scaled_matrix[i][j] = min_value + (max_value - min_value) * (matrix[i][j] - matrix_min) / (matrix_max - matrix_min);
+                if ((matrix_max - matrix_min) < 1e-12) {
+                    scaled_matrix[i][j] = (min_value + max_value)/2;
+                } else {
+                    scaled_matrix[i][j] = min_value + (max_value - min_value) * (matrix[i][j] - matrix_min) / (matrix_max - matrix_min);
+                }
             }
         }
     }
@@ -143,7 +147,7 @@ std::vector<double> scale_array_proportional(const std::vector<double>& arr, dou
     return scaled_array;
 }
 
-void export_cells_as_svg(std::vector<std::vector<std::vector<double>>> cells, std::vector<double> intensities, std::string filename) {
+void export_cells_as_svg(std::vector<std::vector<std::vector<std::vector<double>>>> cells, std::vector<double> intensities, std::string filename) {
     std::ofstream svg_file(filename, std::ios::out);
     if (!svg_file.is_open()) {
         std::cerr << "Error: Unable to open file " << filename << std::endl;
@@ -153,19 +157,21 @@ void export_cells_as_svg(std::vector<std::vector<std::vector<double>>> cells, st
     svg_file << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n";
     svg_file << "<svg width=\"1000\" height=\"" << 1000.0f * ((double)1 / (double)1) << "\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n";
 
-    for (int i=0; i<cells.size(); i++) {
-        std::vector<std::vector<double>> cell = cells[i];
-        std::string path_str = "M";
-        for (std::size_t j = 0; j < cell.size(); ++j) {
-            const auto& point = cell[j];
-            path_str += std::to_string((point[0] / (double)1) * 1000.0f) + "," +
-                        std::to_string((point[1] / (double)1) * 1000.0f * ((double)1 / (double)1));
+    for (int c=0; c<cells.size(); c++) {
+        for (int i=0; i<cells[c].size(); i++) {
+            std::vector<std::vector<double>> cell = cells[c][i];
+            std::string path_str = "M";
+            for (std::size_t j = 0; j < cell.size(); ++j) {
+                const auto& point = cell[j];
+                path_str += std::to_string((point[0] / (double)1) * 1000.0f) + "," +
+                            std::to_string((point[1] / (double)1) * 1000.0f * ((double)1 / (double)1));
 
-            if (j < cell.size() - 1)
-                path_str += "L";
+                if (j < cell.size() - 1)
+                    path_str += "L";
+            }
+            path_str += "Z";
+            svg_file << "<path d=\"" << path_str << "\" fill=\"" << "rgb(" << intensities[c]*255 << ", " << intensities[c]*255 << ", " << intensities[c]*255 << ")\" stroke=\"black\" stroke-width=\"" << 1.0 << "\"/>\n";
         }
-        path_str += "Z";
-        svg_file << "<path d=\"" << path_str << "\" fill=\"" << "rgb(" << intensities[i]*255 << ", " << intensities[i]*255 << ", " << intensities[i]*255 << ")\" stroke=\"black\" stroke-width=\"" << 1.0 << "\"/>\n";
     }
 
     // Write SVG footer
