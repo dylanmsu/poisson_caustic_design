@@ -208,7 +208,7 @@ double calculate_polygon_area_vec(const std::vector<std::vector<double>> input_p
     }
 
     // Take the absolute value and divide by 2
-    area = 0.5 * (area);
+    area = 0.5 * abs(area);
 
     return area;
 }

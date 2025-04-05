@@ -34,14 +34,15 @@ class Bvh
 
         void buildNode(int nodeId, int start, int end, int level, int targetCellSize, int maxDepth);
         int split(int start, int end, int dim, float split_value);
-        void intersectNode(int nodeId, std::vector<double> &point, Hit &hit, bool &found);
+        void intersectNode(int nodeId, const std::vector<double>& point, std::vector<Hit>& hits);
 
     public:
         Bvh(std::vector<std::vector<int>> &triangles, std::vector<std::vector<double>> &points);
         ~Bvh();
 
         void build(int targetCellSize, int maxDepth);
-        void query(std::vector<double> point, Hit &hit, bool &intersection_found);
+        void query(const std::vector<double>& point, std::vector<Hit>& hits, bool& intersection_found);
+
 };
 
 #endif

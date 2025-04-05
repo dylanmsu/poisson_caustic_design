@@ -332,8 +332,8 @@ std::vector<std::vector<double>> Caustic_design::calculate_updated_distribution(
         }
 
         moved_points.push_back({
-            mesh->target_points[i][0] + dx,
-            mesh->target_points[i][1] + dy
+            mesh->target_points[i][0] + dx*0.3,
+            mesh->target_points[i][1] + dy*0.3
         });
     }
 
@@ -349,10 +349,10 @@ std::vector<std::vector<double>> Caustic_design::calculate_updated_distribution(
     std::vector<double> moved_areas = get_partitioned_source_areas(moved_cells);
 
     // multiply the vertex values by the jacobian determinant
-    for (int i = 0; i < moved_cells.size(); i++)
-    {
-        vertex_values[i] *= (start_areas[i] / moved_areas[i]);
-    }
+    //for (int i = 0; i < moved_cells.size(); i++)
+    //{
+    //    vertex_values[i] *= (start_areas[i] / moved_areas[i])*0.5;
+    //}
 
     export_cells_as_svg(moved_cells, scale_array_proportional(vertex_values, 0.0f, 1.0f), "../cells.svg");
 
@@ -417,13 +417,14 @@ double Caustic_design::perform_transport_iteration() {
     const double hx = 2.0 / resolution_x;
     const double hy = 2.0 / resolution_y;
 
-    //subtractAverage(rhs);
-    poisson_solver(rhs, potential, hx, hy, 100000, 0.0000001, nthreads);
+    subtractAverage(rhs);
+    poisson_solver(rhs, potential, hx, hy, 1000000, 1.0E-7, nthreads);
 
     for (int i = 0; i < resolution_y; ++i) {
         std::vector<double> row;
         for (int j = 0; j < resolution_x; ++j) {
-            kantorovich_potential[i][j] = potential[i][j]*(std::min(0.3, 1.0));
+            kantorovich_potential[i][j] = potential[i][j];
+            //kantorovich_potential[i][j] *= 0.5;
         }
     }
     //*/

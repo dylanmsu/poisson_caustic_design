@@ -193,75 +193,69 @@ bool is_inside_bbox(const Node &node, const std::vector<double> &point) {
     return node.bbox_min_x <= point[0] && point[0] <= node.bbox_max_x && node.bbox_min_y <= point[1] && point[1] <= node.bbox_max_y;
 }
 
-void Bvh::intersectNode(int nodeId, std::vector<double> &point, Hit &hit, bool &found)
+// Modified BVH implementation
+void Bvh::intersectNode(int nodeId, const std::vector<double>& point, std::vector<Hit>& hits)
 {
     if(nodes[nodeId].is_leaf)
     {
         if (is_inside_bbox(nodes[nodeId], point)) {
-            for(int i=nodes[nodeId].first_face_id; i<nodes[nodeId].first_face_id + nodes[nodeId].nb_faces; ++i) {
+            for(int i = nodes[nodeId].first_face_id; i < nodes[nodeId].first_face_id + nodes[nodeId].nb_faces; ++i) {
                 
-                std::vector<std::vector<double>> triangle;
-                triangle.push_back(points[triangles[sorted_triangle_ids[i]][0]]);
-                triangle.push_back(points[triangles[sorted_triangle_ids[i]][1]]);
-                triangle.push_back(points[triangles[sorted_triangle_ids[i]][2]]);
+                std::vector<std::vector<double>> triangle = {
+                    points[triangles[sorted_triangle_ids[i]][0]],
+                    points[triangles[sorted_triangle_ids[i]][1]],
+                    points[triangles[sorted_triangle_ids[i]][2]]
+                };
 
-                double eps = 1e-12;
+                const double eps = 1e-12;
                 
+                // Skip degenerate triangles
                 if (calculate_polygon_area_vec(triangle) <= eps) {
-                    //printf("Triangle has negative area!\r\n");
-                    //continue;
+                    continue;
                 }
 
                 std::vector<double> bary_coord = get_barycentric_coordinates(triangle[2], triangle[1], triangle[0], point);
 
-                if ((bary_coord[0] >= -eps && bary_coord[1] >= -eps) && ((bary_coord[0] + bary_coord[1]) <= 1.0f + eps)) {
+                if ((bary_coord[0] >= -eps && bary_coord[1] >= -eps) && 
+                    ((bary_coord[0] + bary_coord[1]) <= 1.0 + eps)) {
+                    
+                    // Add new hit to results
+                    Hit hit;
+                    hit.face_id = sorted_triangle_ids[i];
                     hit.barycentric_coords[0] = bary_coord[0];
                     hit.barycentric_coords[1] = bary_coord[1];
                     hit.barycentric_coords[2] = bary_coord[2];
-                    hit.face_id = sorted_triangle_ids[i];
-                    found = true;
-                    return;
-                }
-                else
-                {
-                    found = false;
+                    hits.push_back(hit);
                 }
             }
-        } else {
-            //std::cout << "point is not inside bbox" << std::endl;
         }
     }
     else
     {
+        // Check both children regardless of previous hits
         int child_id1 = nodes[nodeId].first_child_id;
-        int child_id2 = nodes[nodeId].first_child_id+1;
+        int child_id2 = child_id1 + 1;
 
         if (nodes[child_id1].bbox_min_x <= point[0] && point[0] <= nodes[child_id1].bbox_max_x &&
-            nodes[child_id1].bbox_min_y <= point[1] && point[1] <= nodes[child_id1].bbox_max_y)
-        {
-        //if(nodes_[child_id1].box.contains(target)) {
-            intersectNode(child_id1, point, hit, found);
-            if(found) return;
+            nodes[child_id1].bbox_min_y <= point[1] && point[1] <= nodes[child_id1].bbox_max_y) {
+            intersectNode(child_id1, point, hits);
         }
         
         if (nodes[child_id2].bbox_min_x <= point[0] && point[0] <= nodes[child_id2].bbox_max_x &&
-            nodes[child_id2].bbox_min_y <= point[1] && point[1] <= nodes[child_id2].bbox_max_y)
-        {
-        //if(nodes_[child_id2].box.contains(target)) {
-            intersectNode(child_id2, point, hit, found);
-            if(found) return;
+            nodes[child_id2].bbox_min_y <= point[1] && point[1] <= nodes[child_id2].bbox_max_y) {
+            intersectNode(child_id2, point, hits);
         }
     }
 }
 
-void Bvh::query(std::vector<double> point, Hit &hit, bool &intersection_found)
+void Bvh::query(const std::vector<double>& point, std::vector<Hit>& hits, bool& intersection_found)
 {
+    hits.clear();
+    
     if (nodes[0].bbox_min_x <= point[0] && point[0] <= nodes[0].bbox_max_x &&
-        nodes[0].bbox_min_y <= point[1] && point[1] <= nodes[0].bbox_max_y)
-    {
-        intersectNode(0, point, hit, intersection_found);
-    } else {
-        //printf("outside main bbox\r\n");
-        intersection_found = false;
+        nodes[0].bbox_min_y <= point[1] && point[1] <= nodes[0].bbox_max_y) {
+        intersectNode(0, point, hits);
     }
+    
+    intersection_found = !hits.empty();
 }

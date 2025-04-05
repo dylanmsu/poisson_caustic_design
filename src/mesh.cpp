@@ -506,23 +506,32 @@ std::vector<std::vector<double>> Mesh::interpolate_raster(const std::vector<doub
         std::vector<double> row;
         for (int j = 0; j < res_x; ++j) {
             point_t point = {x[j], y[i]};
-            Hit hit;
+            std::vector<Hit> hits;
             bool intersection = false;
-            bvh->query(point, hit, intersection);
-            if (intersection) {
+            bvh->query(point, hits, intersection);
+
+            double interpolation_sum = 0.0;
+
+            for (int k = 0; k < hits.size(); k++)
+            {
                 std::vector<double> vertex_values;
-                for (int k = 0; k < 3; ++k) {
-                    int value_index = triangles[hit.face_id][k];
+                for (int l = 0; l < 3; ++l) {
+                    int value_index = triangles[hits[k].face_id][l];
                     double value = errors[value_index];
                     vertex_values.push_back(value);
                 }
                     
                 double interpolation = 
-                    vertex_values[0]*hit.barycentric_coords[0] + 
-                    vertex_values[1]*hit.barycentric_coords[1] + 
-                    vertex_values[2]*hit.barycentric_coords[2];
-                row.push_back(interpolation);
+                    vertex_values[0]*hits[k].barycentric_coords[0] + 
+                    vertex_values[1]*hits[k].barycentric_coords[1] + 
+                    vertex_values[2]*hits[k].barycentric_coords[2];
+                
+                interpolation_sum += interpolation;
                 triangle_miss = false;
+            }
+            
+            if (intersection) {
+                row.push_back(interpolation_sum);
             } else {
                 printf("interpolation miss!\r\n");
                 printf("x: %f, y: %f\r\n", point[0], point[1]);
@@ -562,24 +571,24 @@ std::vector<point_t> Mesh::calculate_inverted_transport_map() {
             this->source_points[i][2]
         };
 
-        Hit hit;
+        std::vector<Hit> hits;
         bool intersection = false;
-        target_bvh->query(point, hit, intersection);
+        target_bvh->query(point, hits, intersection);
         if (intersection) {
             std::vector<point_t> vertex_values;
-            vertex_values.push_back(source_points[this->triangles[hit.face_id][0]]);
-            vertex_values.push_back(source_points[this->triangles[hit.face_id][1]]);
-            vertex_values.push_back(source_points[this->triangles[hit.face_id][2]]);
+            vertex_values.push_back(source_points[this->triangles[hits[0].face_id][0]]);
+            vertex_values.push_back(source_points[this->triangles[hits[0].face_id][1]]);
+            vertex_values.push_back(source_points[this->triangles[hits[0].face_id][2]]);
             
             double interpolation_x = 
-                vertex_values[0][0]*hit.barycentric_coords[0] + 
-                vertex_values[1][0]*hit.barycentric_coords[1] + 
-                vertex_values[2][0]*hit.barycentric_coords[2];
+                vertex_values[0][0]*hits[0].barycentric_coords[0] + 
+                vertex_values[1][0]*hits[0].barycentric_coords[1] + 
+                vertex_values[2][0]*hits[0].barycentric_coords[2];
 
             double interpolation_y = 
-                vertex_values[0][1]*hit.barycentric_coords[0] + 
-                vertex_values[1][1]*hit.barycentric_coords[1] + 
-                vertex_values[2][1]*hit.barycentric_coords[2];
+                vertex_values[0][1]*hits[0].barycentric_coords[0] + 
+                vertex_values[1][1]*hits[0].barycentric_coords[1] + 
+                vertex_values[2][1]*hits[0].barycentric_coords[2];
 
             int y = i / res_x;
             int x = i % res_x;
