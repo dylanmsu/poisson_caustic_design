@@ -14,7 +14,7 @@ Mesh::Mesh(double width, double height, int res_x, int res_y)
     generate_structured_mesh(res_x, res_y, width, height, this->triangles, this->target_points);
     build_vertex_to_triangles();
 
-    //circular_transform(this->target_points);
+    this->target_points = circular_transform(this->target_points);
 
     // Duplicate mesh points
     for (int i=0; i<this->target_points.size(); i++) {
@@ -84,11 +84,14 @@ std::vector<point_t> Mesh::circular_transform(std::vector<point_t> &input_points
     for (int i = 0; i < input_points.size(); i++) {
         point_t transformed_point(3);
 
-        double x = input_points[i][0] - this->width/2.0f;
-        double y = input_points[i][1] - this->height/2.0f;
+        double x = (input_points[i][0] - this->width/2.0f )*2;
+        double y = (input_points[i][1] - this->height/2.0f)*2;
 
         transformed_point[0] = x * sqrt(1.0 - 2.0*(y * y));
         transformed_point[1] = y * sqrt(1.0 - 2.0*(x * x));
+
+        transformed_point[0] /= 2;
+        transformed_point[1] /= 2;
 
         transformed_point[0] += this->width/2.0f;
         transformed_point[1] += this->height/2.0f;
@@ -200,6 +203,60 @@ void Mesh::build_adjacency_lookups() {
     }
     
     
+}
+
+// Call this first to populate boundary_normals
+void Mesh::compute_boundary_normals() {
+    const int n = target_points.size();
+    boundary_normals.resize(n, std::vector<double>(2, 0.0));
+
+    for (int i = 0; i < n; ++i) {
+        if (!vertex_is_boundary[i]) continue;
+
+        std::vector<double> normal(2, 0.0);
+        int boundary_edge_count = 0;
+
+        // Find boundary edges using triangle adjacency
+        for (const auto& edge : vertex_adjecent_edges[i]) {
+            const int j = (edge.first == i) ? edge.second : edge.first;
+            
+            // Count how many triangles share this edge
+            int shared_triangles = 0;
+            for (const int ti : vertex_adjecent_triangles[i]) {
+                for (const int tj : vertex_adjecent_triangles[j]) {
+                    if (ti == tj) shared_triangles++;
+                }
+            }
+
+            // Boundary edges are only in one triangle
+            if (shared_triangles == 1) {
+                const double dx = target_points[j][0] - target_points[i][0];
+                const double dy = target_points[j][1] - target_points[i][1];
+                const double length = std::hypot(dx, dy);
+
+                if (length > 1e-12) {
+                    // Rotate edge vector 90 degrees to get outward normal
+                    normal[0] += dy / length;  // cos(theta + 90) = -sin(theta)
+                    normal[1] += -dx / length; // sin(theta + 90) = cos(theta)
+                    boundary_edge_count++;
+                }
+            }
+        }
+
+        // Average and normalize
+        if (boundary_edge_count > 0) {
+            const double inv_count = 1.0 / boundary_edge_count;
+            normal[0] *= inv_count;
+            normal[1] *= inv_count;
+            
+            // Normalize final vector
+            const double mag = std::hypot(normal[0], normal[1]);
+            if (mag > 1e-12) {
+                boundary_normals[i][0] = normal[0] / mag;
+                boundary_normals[i][1] = normal[1] / mag;
+            }
+        }
+    }
 }
 
 // Function to calculate angle between two points with respect to a reference point
