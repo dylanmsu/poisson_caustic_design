@@ -232,6 +232,10 @@ double angle(std::vector<double> v1, std::vector<double> v2)
     return std::acos(dot(v1, v2));
 }
 
+std::vector<double> multiply(std::vector<double> vec, double scalar) {
+    return {vec[0] * scalar, vec[1] * scalar, vec[1] * scalar};
+}
+
 std::vector<double> compute_laplacian(Mesh &mesh, std::vector<int> adjacent_triangles, std::vector<int> neighboring_vertices, int i) {
     std::vector<double> laplacian(neighboring_vertices.size(), 0.0f);
 
@@ -301,19 +305,42 @@ std::vector<double> compute_laplacian(Mesh &mesh, std::vector<int> adjacent_tria
                 throw std::runtime_error("Error identifying k vertex in boundary triangle.");
             }
 
-            std::vector<double> edge1;
-            std::vector<double> edge2;
+            // Compute the cotangent from the real triangle
+            std::vector<double> edge1 = sub(mesh.target_points[k], mesh.target_points[j]);
+            std::vector<double> edge2 = sub(mesh.target_points[k], mesh.target_points[i]);
+            double cot_real = cot(edge1, edge2);
 
-            edge1 = sub(mesh.target_points[k], mesh.target_points[j]);
-            edge2 = sub(mesh.target_points[k], mesh.target_points[i]);
-            double cot_k = cot(edge1, edge2);
+            // --- Mirroring step ---
+            // Get the positions of vertices i and j
+            std::vector<double> vi = mesh.target_points[i];
+            std::vector<double> vj = mesh.target_points[j];
+            std::vector<double> vk = mesh.target_points[k];
 
-            laplacian[j_index] = 0.5*cot_k;
+            // Compute unit direction d along edge (i,j)
+            std::vector<double> d = normalize(sub(vj, vi));
+
+            // Projection scalar
+            double proj = dot(sub(vk, vi), d);
+
+            // Projection point p = vi + proj * d
+            std::vector<double> p = add(vi, multiply(d, proj));
+
+            // Mirror vk across the line through vi and vj: vk' = 2*p - vk
+            std::vector<double> vk_mirror = sub(multiply(p, 2.0), vk);
+
+            // Now, compute the cotangent from the virtual triangle (i, j, mirrored k)
+            // Use the same pattern as before:
+            std::vector<double> edge1_m = sub(vk_mirror, vj);
+            std::vector<double> edge2_m = sub(vk_mirror, vi);
+            double cot_mirror = cot(edge1_m, edge2_m);
+
+            // Combine the two cotangent values
+            laplacian[j_index] = 0.5 * (cot_real);
 
             //std::cout << "k=" << k << std::endl;
 
         } else {
-            throw std::runtime_error("No shared triangles between i and j; invalid mesh or disconnected vertex.");
+            std::cout << "No shared triangles between i and j; invalid mesh or disconnected vertex.";
         }
     }
 
@@ -330,7 +357,7 @@ std::vector<double> compute_laplacian(Mesh &mesh, std::vector<int> adjacent_tria
 void poisson_solver_unstructured(
     Mesh &mesh, std::vector<double> &input, std::vector<double> &solution, int num_threads = 1) {
     
-    double omega = 1.0;
+    double omega = 1.0; //Gauss–Seidel
     const int max_iterations = 100000000;
     const double tolerance = 0.0001;
 
@@ -353,7 +380,7 @@ void poisson_solver_unstructured(
 
         auto neighboring_vertices = mesh.vertex_adjecent_vertices[i];
 
-        std::vector<double> laplacian = laplacians[i];
+        std::vector<double> &laplacian = laplacians[i];
 
         for (int j = 0; j < neighboring_vertices.size(); j++)
         {
@@ -380,36 +407,36 @@ void poisson_solver_unstructured(
 
     for (int itr = 0; itr < max_iterations; ++itr) {
         max_update = 0.0;
-
+    
         // Divide the workload among threads
         std::vector<std::thread> threads;
         std::vector<double> local_max_updates(num_threads, 0.0);
-
+    
         int chunk_size = (mesh.target_points.size() + num_threads - 1) / num_threads;
-
+    
         for (int t = 0; t < num_threads; ++t) {
             int start = t * chunk_size;
             int end = std::min(start + chunk_size, (int)mesh.target_points.size());
-            if (start >= end) break; // No work for this thread
+            
+            if (start >= end) continue; // No work for this thread, so skip this iteration
+    
+            // Launch thread to process a chunk of data
             threads.emplace_back(worker, start, end, std::ref(local_max_updates[t]));
         }
-
+    
         // Join all threads
         for (auto &thread : threads) {
-            if (thread.joinable()) {
-                thread.join();
-            }
+            thread.join(); // This will wait for all threads to finish
         }
-
-        // Calculate global max_update
+    
+        // Calculate global max_update from all threads' results
         for (const auto &local_update : local_max_updates) {
-            if (local_update > max_update) {
-                max_update = local_update;
-            }
+            max_update = std::fmax(max_update, local_update);
         }
-
-        //std::cout << "Iteration " << itr << ", max_update = " << max_update << "\n";
-
+    
+        // Optional: Print progress if needed
+        // std::cout << "Iteration " << itr << ", max_update = " << max_update << "\n";
+    
         // Check for convergence
         if (max_update < tolerance) {
             break;
@@ -425,53 +452,124 @@ std::vector<std::vector<double>> calculate_mesh_gradient(Mesh &mesh, std::vector
 
     for (int i = 0; i < mesh.triangles.size(); i++) {
         std::vector<int> triangle = mesh.triangles[i];
-        std::vector<double> vertex_i = mesh.target_points[triangle[0]];
-        std::vector<double> vertex_j = mesh.target_points[triangle[1]];
-        std::vector<double> vertex_k = mesh.target_points[triangle[2]];
 
-        // get triangle area
-        std::vector<std::vector<double>> polygon = {vertex_i, vertex_j, vertex_k};
-        double area = calculate_polygon_area_vec(polygon);
+        std::vector<double> vi = mesh.target_points[triangle[0]];
+        std::vector<double> vj = mesh.target_points[triangle[1]];
+        std::vector<double> vk = mesh.target_points[triangle[2]];
 
-        // get edges
-        std::vector<double> edge_ik = sub(vertex_i, vertex_k);
-        std::vector<double> edge_ji = sub(vertex_j, vertex_i);
+        double xi = vi[0], yi = vi[1];
+        double xj = vj[0], yj = vj[1];
+        double xk = vk[0], yk = vk[1];
 
-        // rotate by 90°
-        std::vector<double> edge_ik_t = {-edge_ik[1], edge_ik[0], edge_ik[2]};
-        std::vector<double> edge_ji_t = {-edge_ji[1], edge_ji[0], edge_ji[2]};
+        double area = 0.5 * ((xj - xi) * (yk - yi) - (yj - yi) * (xk - xi));
+        bool flipped = area < 0;
+        area = std::abs(area);
 
-        // function gradient on edges
+        std::vector<double> edge_ik = {xi - xk, yi - yk}; 
+        std::vector<double> edge_ji = {xj - xi, yj - yi};
+
+        std::vector<double> edge_ik_t = {-edge_ik[1], edge_ik[0], 0.0};
+        std::vector<double> edge_ji_t = {-edge_ji[1], edge_ji[0], 0.0};
+
         double f_ji = input[triangle[1]] - input[triangle[0]];
         double f_ki = input[triangle[2]] - input[triangle[0]];
 
-        // gradient
-        std::vector<double> a = mult(f_ji / (2.0*area), edge_ik_t);
-        std::vector<double> b = mult(f_ki / (2.0*area), edge_ji_t);
-        triangle_gradients[i] = add(a, b);
+        std::vector<double> a = mult(f_ji / (2.0 * area), edge_ik_t);
+        std::vector<double> b = mult(f_ki / (2.0 * area), edge_ji_t);
+        std::vector<double> gradient = add(a, b);
+
+        if (flipped) {
+            gradient = mult(-1.0, gradient);
+        }
+
+        triangle_gradients[i] = gradient;
         triangle_areas[i] = area;
     }
 
+    // Vertex-wise area-weighted average of triangle gradients
     for (int i = 0; i < mesh.target_points.size(); i++) {
-        auto [adjacent_edges, adjacent_triangles, neighboring_vertices] = mesh.find_adjacent_elements(i);
-
         std::vector<double> vertex_gradient(3, 0.0);
-        double total_weight = 0.0f;
+        double total_weight = 0.0;
 
-        for (int j = 0; j < adjacent_triangles.size(); j++) {
-            std::vector<double> edge_ij = sub(mesh.target_points[mesh.triangles[adjacent_triangles[j]][0]], mesh.target_points[mesh.triangles[adjacent_triangles[j]][1]]);
-            std::vector<double> edge_ik = sub(mesh.target_points[mesh.triangles[adjacent_triangles[j]][0]], mesh.target_points[mesh.triangles[adjacent_triangles[j]][2]]);
-            //double weight = 1.0;// / angle(edge_ij, edge_ik);
-            double weight = triangle_areas[j];
-            vertex_gradient = add(vertex_gradient, mult(weight, triangle_gradients[adjacent_triangles[j]]));
+        for (int tri_idx : mesh.vertex_adjecent_triangles[i]) {
+            double weight = triangle_areas[tri_idx];
+            vertex_gradient = add(vertex_gradient, mult(weight, triangle_gradients[tri_idx]));
             total_weight += weight;
         }
 
-        vertex_gradients[i] = mult(1.0 / total_weight, vertex_gradient);
+        if (total_weight > 0) {
+            vertex_gradients[i] = mult(1.0 / total_weight, vertex_gradient);
+        } else {
+            vertex_gradients[i] = std::vector<double>(3, 0.0);
+        }
     }
-    
+
     return vertex_gradients;
 }
+
+
+/*std::vector<std::vector<double>> calculate_mesh_gradient(Mesh &mesh, std::vector<double> &input) {
+    mesh.compute_boundary_normals();
+    int n = mesh.target_points.size();
+    std::vector<std::vector<double>> gradients(n, std::vector<double>(2, 0.0));
+    const double boundary_weight = 1e8;  // Increased penalty weight
+
+    for (int i = 0; i < n; ++i) {
+        const auto& xi = mesh.target_points[i];
+        double phi_i = input[i];
+        
+        double a11 = 0.0, a12 = 0.0, a22 = 0.0;
+        double b1 = 0.0, b2 = 0.0;
+
+        // Contributions from adjacent vertices
+        for (int j : mesh.vertex_adjecent_vertices[i]) {
+            const auto& xj = mesh.target_points[j];
+            double dx = xj[0] - xi[0];
+            double dy = xj[1] - xi[1];
+            double delta_phi = input[j] - phi_i;
+
+            a11 += dx * dx;
+            a12 += dx * dy;
+            a22 += dy * dy;
+            b1 += dx * delta_phi;
+            b2 += dy * delta_phi;
+        }
+
+        // Enforce Neumann BCs on boundary vertices
+        if (mesh.vertex_is_boundary[i]) {
+            const auto& n = mesh.boundary_normals[i];
+            a11 += boundary_weight * n[0] * n[0];
+            a12 += boundary_weight * n[0] * n[1];
+            a22 += boundary_weight * n[1] * n[1];
+            // No RHS term for homogeneous Neumann (grad ⋅ n = 0)
+        }
+
+        // Solve the 2x2 system
+        double det = a11 * a22 - a12 * a12;
+        if (std::abs(det) > 1e-12) {
+            gradients[i][0] = (a22 * b1 - a12 * b2) / det;
+            gradients[i][1] = (-a12 * b1 + a11 * b2) / det;
+        } else if (mesh.vertex_is_boundary[i]) {
+            // Hard-enforce grad ⋅ n = 0 on boundaries
+            gradients[i][0] = 0.0;
+            gradients[i][1] = 0.0;
+        } else {
+            // Fallback: Use adjacent gradients (only for interior)
+            int count = 0;
+            for (int j : mesh.vertex_adjecent_vertices[i]) {
+                gradients[i][0] += gradients[j][0];
+                gradients[i][1] += gradients[j][1];
+                count++;
+            }
+            if (count > 0) {
+                gradients[i][0] /= count;
+                gradients[i][1] /= count;
+            }
+        }
+    }
+
+    return gradients;
+}*/
 
 std::vector<double> compute_divergence(Mesh &mesh, const std::vector<std::vector<double>> &vector_field) {
     std::vector<double> divergence(mesh.target_points.size(), 0.0);
@@ -559,7 +657,7 @@ double Caustic_design::perform_transport_iteration() {
     subtractAverage(raster);
     poisson_solver(raster, phi, resolution_x, resolution_y, 100000, 0.0000001, nthreads);*/
 
-    bool triangle_miss = false;
+    /*bool triangle_miss = false;
     phi = mesh.interpolate_raster_target(solution, resolution_x, resolution_y, triangle_miss);
 
     // calculate the gradient given by equation 4
@@ -585,8 +683,17 @@ double Caustic_design::perform_transport_iteration() {
         ));
     }//*/
 
-    export_cells_as_svg(target_cells, scale_array_proportional(vertex_gradient_x, 0.0f, 1.0f), "../vertex_gradient_x.svg");
-    export_cells_as_svg(target_cells, scale_array_proportional(vertex_gradient_y, 0.0f, 1.0f), "../vertex_gradient_y.svg");
+    std::vector<std::vector<double>> gradients = calculate_mesh_gradient(mesh, solution);
+
+    std::vector<double> vertex_gradient_x;
+    std::vector<double> vertex_gradient_y;
+    for (int i=0; i<mesh.target_points.size(); i++) {
+        vertex_gradient_x.push_back(gradients[i][0]);
+        vertex_gradient_y.push_back(gradients[i][1]);
+    }//*/
+
+    //export_cells_as_svg(target_cells, scale_array_proportional(vertex_gradient[0], 0.0f, 1.0f), "../vertex_gradient_x.svg");
+    //export_cells_as_svg(target_cells, scale_array_proportional(vertex_gradient[1], 0.0f, 1.0f), "../vertex_gradient_y.svg");
 
     vertex_gradient.clear();
     vertex_gradient.push_back(vertex_gradient_x);
@@ -603,7 +710,7 @@ double Caustic_design::perform_transport_iteration() {
 
     // step the mesh vertices in the direction of their gradient vector
     //mesh.step_grid(vertex_gradient[0], vertex_gradient[1], 0.0005f);
-    mesh.step_grid(vertex_gradient[0], vertex_gradient[1], 0.5f);
+    mesh.step_grid(vertex_gradient[0], vertex_gradient[1], 0.001f);
 
     //mesh.laplacian_smoothing(mesh.target_points, 0.5f);
 
