@@ -207,7 +207,7 @@ std::vector<std::vector<double>> calculate_divergence(const std::vector<std::vec
     return divergence;
 }//*/
 
-void calculate_errors(std::vector<double> &source_areas, std::vector<double> &target_areas, std::vector<std::vector<std::vector<double>>> cells, std::vector<double> &errors) {
+void calculate_errors(std::vector<double> &source_areas, std::vector<double> &target_areas, std::vector<std::vector<std::vector<std::vector<double>>>> cells, std::vector<double> &errors) {
     errors.clear();
     for (int i=0; i<target_areas.size(); i++) {
         errors.push_back(target_areas[i] - source_areas[i]);
@@ -215,7 +215,11 @@ void calculate_errors(std::vector<double> &source_areas, std::vector<double> &ta
 
     double error_sum = 0;
     for (int i=0; i<target_areas.size(); i++) {
-        errors[i] = errors[i] / calculate_polygon_area_vec(cells[i]);
+        double source_area = 0.0f;
+		for (int j=0; j<cells[i].size(); j++) {
+			source_area += calculate_polygon_area_vec(cells[i][j]);
+		}
+        errors[i] = errors[i] / source_area;
         error_sum += errors[i];
     }
     double average = error_sum / target_areas.size();

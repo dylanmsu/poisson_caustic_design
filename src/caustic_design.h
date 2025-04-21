@@ -16,8 +16,8 @@ public:
     Mesh mesh;
     std::vector<double> phi;
     std::vector<double> errors;
-    std::vector<std::vector<std::vector<double>>> target_cells;
-    std::vector<std::vector<std::vector<double>>> source_cells;
+    std::vector<std::vector<std::vector<std::vector<double>>>> target_cells;
+    std::vector<std::vector<std::vector<std::vector<double>>>> source_cells;
     std::vector<double> target_areas;
     std::vector<std::vector<double>> pixels;
     std::vector<std::vector<double>> raster;

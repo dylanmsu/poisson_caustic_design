@@ -47,6 +47,9 @@ std::vector<double> integrate_grid_into_cells(std::vector<std::vector<double>> &
 std::vector<double> get_target_areas(std::vector<std::vector<double>> &image, std::vector<std::vector<std::vector<double>>> &input_polygons, int image_w, int image_h, double width, double height);
 std::vector<double> get_source_areas(std::vector<std::vector<std::vector<double>>> &input_polygons);
 
+std::vector<double> get_partitioned_source_areas(std::vector<std::vector<std::vector<std::vector<double>>>> &input_polygons);
+std::vector<double> get_target_partitioned_areas(std::vector<std::vector<double>> &image, std::vector<std::vector<std::vector<std::vector<double>>>> &input_polygons, int image_w, int image_h, double width, double height);
+
 #ifdef __cplusplus
 }
 #endif

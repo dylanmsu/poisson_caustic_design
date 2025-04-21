@@ -69,7 +69,7 @@ class Mesh {
         void export_to_svg(std::string filename, double stroke_width);
         void export_paramererization_to_svg(std::string filename, double stroke_width);
 
-        std::vector<std::vector<double>> get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points);
+        //std::vector<std::vector<double>> get_barycentric_dual_cell(int point, std::vector<std::vector<double>> &points);
         
         void build_target_dual_cells(std::vector<std::vector<point_t>> &cells);
         void build_source_dual_cells(std::vector<std::vector<point_t>> &cells);
@@ -103,6 +103,13 @@ class Mesh {
         void laplacian_smoothing(std::vector<std::vector<double>> &points, double smoothing_factor);
 
         void get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_vertex, int &top_vertex, int &bottom_vertex);
+
+        std::vector<std::vector<double>> get_triangle_quad(int vertex_idx, int triangle_idx, std::vector<point_t>& points);
+        std::vector<std::vector<double>> get_barycentric_dual_cell(int point, std::vector<point_t> &points);
+        std::vector<std::vector<std::vector<double>>> get_partitioned_barycentric_dual_cell(int v_point, std::vector<point_t>& points);
+
+        void build_target_partitioned_dual_cells(std::vector<std::vector<std::vector<std::vector<double>>>> &cells);
+        void build_source_partitioned_dual_cells(std::vector<std::vector<std::vector<std::vector<double>>>> &cells);
 };
 
 #endif
