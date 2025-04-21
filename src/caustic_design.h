@@ -14,7 +14,7 @@ public:
     ~Caustic_design();
 
     Mesh mesh;
-    std::vector<std::vector<double>> phi;
+    std::vector<double> phi;
     std::vector<double> errors;
     std::vector<std::vector<std::vector<double>>> target_cells;
     std::vector<std::vector<std::vector<double>>> source_cells;

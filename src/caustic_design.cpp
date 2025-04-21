@@ -308,7 +308,7 @@ std::vector<double> compute_laplacian(Mesh &mesh, std::vector<int> adjacent_tria
             edge2 = sub(mesh.target_points[k], mesh.target_points[i]);
             double cot_k = cot(edge1, edge2);
 
-            laplacian[j_index] = 1;
+            laplacian[j_index] = 0.5 * (cot_k);
 
             //std::cout << "k=" << k << std::endl;
 
@@ -357,7 +357,7 @@ void poisson_solver_unstructured(
 
         for (int j = 0; j < neighboring_vertices.size(); j++)
         {
-            double weight = laplacian[j] / magnitude(sub(mesh.target_points[i], mesh.target_points[j]));
+            double weight = laplacian[j];// / magnitude(sub(mesh.target_points[i], mesh.target_points[j]));
             neighbor_cnt += weight;
             neighbor_sum += weight * solution[neighboring_vertices[j]]; // Access via neighbor indices
         }
@@ -536,14 +536,14 @@ double Caustic_design::perform_transport_iteration() {
 
     // build median dual mesh of the updated parameterization
     target_cells.clear();
-        mesh.build_target_dual_cells(target_cells);
+    mesh.build_target_dual_cells(target_cells);
 
     // calculate difference D (interpretation of equation 2)
     std::vector<double> source_areas = get_source_areas(target_cells);
     calculate_errors(source_areas, target_areas, target_cells, errors);
 
     // rasterize the mesh into a uniform rectangular matrix
-    bool triangle_miss = false;
+    /*bool triangle_miss = false;
     raster = mesh.interpolate_raster_target(errors, resolution_x, resolution_y, triangle_miss);
     
     if (triangle_miss) {
@@ -576,19 +576,35 @@ double Caustic_design::perform_transport_iteration() {
             (mesh.target_points[i][0] / mesh.width) * (resolution_x) - 0.5, 
             (mesh.target_points[i][1] / mesh.height) * (resolution_y) - 0.5
         ));
-    }//*/
+    }//
+    
+    vertex_gradient.clear();
+    vertex_gradient.push_back(gradient[0]);
+    vertex_gradient.push_back(gradient[1]);*/
 
+    poisson_solver_unstructured(mesh, errors, phi, 1);
+
+    export_cells_as_svg(target_cells, scale_array_proportional(phi, 0.0f, 1.0f), "../phi.svg");
+
+    std::vector<std::vector<double>> vtx_grad = calculate_mesh_gradient(mesh, phi);
+
+    std::vector<double> vertex_gradient_x;
+    std::vector<double> vertex_gradient_y;
+    for (int i = 0; i < vtx_grad.size(); i++)
+    {
+        vertex_gradient_x.push_back(vtx_grad[i][0]);
+        vertex_gradient_y.push_back(vtx_grad[i][1]);
+    }
+    
     export_cells_as_svg(target_cells, scale_array_proportional(vertex_gradient_x, 0.0f, 1.0f), "../vertex_gradient_x.svg");
     export_cells_as_svg(target_cells, scale_array_proportional(vertex_gradient_y, 0.0f, 1.0f), "../vertex_gradient_y.svg");
 
-    vertex_gradient.clear();
-    vertex_gradient.push_back(vertex_gradient_x);
-    vertex_gradient.push_back(vertex_gradient_y);
-    
-    //*/
-
     // integrate the gradient grid into the dual cells of the vertices (slower but better contrast)
     //vertex_gradient = integrate_cell_gradients(gradient, target_cells, resolution_x, resolution_y, width, height);
+
+    //vertex_gradient.clear();
+    //vertex_gradient.push_back(vertex_gradient_x);
+    //vertex_gradient.push_back(vertex_gradient_y);
 
     std::vector<std::vector<double>> old_points;
 
@@ -596,7 +612,7 @@ double Caustic_design::perform_transport_iteration() {
 
     // step the mesh vertices in the direction of their gradient vector
     //mesh.step_grid(vertex_gradient[0], vertex_gradient[1], 0.0005f);
-    mesh.step_grid(vertex_gradient[0], vertex_gradient[1], 0.05f);
+    mesh.step_grid(vertex_gradient_x, vertex_gradient_y, 0.0005f);
 
     //mesh.laplacian_smoothing(mesh.target_points, 0.5f);
 
@@ -718,13 +734,22 @@ void Caustic_design::initialize_solvers(std::vector<std::vector<double>> image) 
     export_cells_as_svg(target_cells, scale_array_proportional(target_areas, 0.0f, 1.0f), "../cells.svg");
 
     phi.clear();
+    vertex_gradient.clear();
+    vertex_gradient.push_back(std::vector<double>());
+    vertex_gradient.push_back(std::vector<double>());
+    for (int i = 0; i < target_cells.size(); i++)
+    {
+        phi.push_back(0.0f);
+        vertex_gradient[0].push_back(0.0f);
+        vertex_gradient[1].push_back(0.0f);
+    }
+    
     h.clear();
     for (int i = 0; i < resolution_y; ++i) {
         std::vector<double> row;
         for (int j = 0; j < resolution_x; ++j) {
             row.push_back(0.0f);
         }
-        phi.push_back(row);
         h.push_back(row);
     }
 }
