@@ -1,7 +1,7 @@
 # Poisson-Based Continuous Surface Generation for Goal-Based Caustics
 
 ## A better version exists.
-A newer and significantly improved version of this code is available in dylanmsu/fast_caustic_design.
+A newer and significantly improved version of this code is available in [dylanmsu/fast_caustic_design](https://github.com/dylanmsu/fast_caustic_design).
 It runs much faster and achieves substantially higher contrast than the Poisson-based algorithm used here.
 
 Note, however, that fast_caustic_design can be more challenging to compile due to its dependency on Ceres Solver.
@@ -202,5 +202,6 @@ This project uses the MIT License.
 Thank you to Yue et al for their awesome research paper.
 
 I would also like to thank Matt Ferraro for providing [their informative article](https://mattferraro.dev/posts/caustics-engineering) about the paper.
+
 
 
